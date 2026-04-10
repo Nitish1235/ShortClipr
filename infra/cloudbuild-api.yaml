@@ -1,0 +1,78 @@
+steps:
+  # ── Build ──────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-api
+    args:
+      - build
+      - --cache-from
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:latest'
+      - -t
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:$COMMIT_SHA'
+      - -t
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:latest'
+      - --build-arg
+      - BUILDKIT_INLINE_CACHE=1
+      - backend/api
+
+  # ── Push ───────────────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-api
+    args:
+      - push
+      - '--all-tags'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api'
+    waitFor: [build-api]
+
+  # ── Deploy to Cloud Run ────────────────────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy-api
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - shortclipr-api
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:$COMMIT_SHA'
+      - '--region'
+      - us-central1
+      - '--platform'
+      - managed
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8000'
+      - '--min-instances'
+      - '1'
+      - '--max-instances'
+      - '20'
+      - '--concurrency'
+      - '80'
+      - '--cpu'
+      - '1'
+      - '--memory'
+      - '512Mi'
+      - '--timeout'
+      - '60s'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production,GCS_BUCKET_INPUT=shortclipr-input-videos,GCS_BUCKET_OUTPUT=shortclipr-output-clips'
+      - '--set-secrets'
+      - >-
+        GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,
+        GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,
+        JWT_SECRET_KEY=JWT_SECRET_KEY:latest,
+        GCP_PROJECT_ID=GCP_PROJECT_ID:latest,
+        UPSTASH_REDIS_URL=UPSTASH_REDIS_URL:latest,
+        UPSTASH_REDIS_TOKEN=UPSTASH_REDIS_TOKEN:latest,
+        DODO_PAYMENTS_API_KEY=DODO_PAYMENTS_API_KEY:latest,
+        DODO_WEBHOOK_SECRET=DODO_WEBHOOK_SECRET:latest
+      - '--service-account'
+      - 'shortclipr-api@$PROJECT_ID.iam.gserviceaccount.com'
+    waitFor: [push-api]
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 900s
