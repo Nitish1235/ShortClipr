@@ -13,6 +13,8 @@ import logging
 import os
 import signal
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime, timezone
 
 from pipeline import orchestrator
@@ -257,11 +259,29 @@ async def worker_loop() -> None:
     logger.info("Worker exited cleanly.")
 
 
+def _run_dummy_server():
+    """Cloud Run requires listening on $PORT for health checks."""
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+        def log_message(self, *args):
+            pass # Suppress noisy access logs
+            
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    server.serve_forever()
+
+
 if __name__ == "__main__":
     required = ["SUPABASE_DB_URL", "UPSTASH_REDIS_URL", "UPSTASH_REDIS_TOKEN"]
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
         logger.critical(f"Missing env vars: {missing}")
         sys.exit(1)
+
+    # Start dummy HTTP server in a background daemon thread
+    threading.Thread(target=_run_dummy_server, daemon=True).start()
 
     asyncio.run(worker_loop())
