@@ -1,15 +1,12 @@
 """
 main.py — Worker entry point.
 
-Production hardening:
-  - Graceful SIGTERM shutdown (Cloud Run sends SIGTERM before killing)
-  - Global exception handler with structured logging
-  - Job retry tracking (max 3 attempts per job)
-  - credits_used increment in Firestore on job completion
-  - Exponential backoff on Redis pop failures
-  - Startup env validation
+Database: Supabase (asyncpg) for job/user status updates.
+Storage:  GCS (unchanged) for video files and clip outputs.
+Queue:    Upstash Redis REST API.
 """
 import asyncio
+import asyncpg
 import httpx
 import json
 import logging
@@ -17,7 +14,6 @@ import os
 import signal
 import sys
 from datetime import datetime, timezone
-from google.cloud import firestore
 
 from pipeline import orchestrator
 
@@ -30,30 +26,48 @@ logging.basicConfig(
 logger = logging.getLogger("shortclipr.worker")
 
 # ── Config ────────────────────────────────────────────────────────────────────
+SUPABASE_DB_URL     = os.environ["SUPABASE_DB_URL"]
 UPSTASH_REDIS_URL   = os.environ["UPSTASH_REDIS_URL"]
 UPSTASH_REDIS_TOKEN = os.environ["UPSTASH_REDIS_TOKEN"]
 REDIS_JOB_QUEUE     = os.getenv("REDIS_JOB_QUEUE", "shortclipr:jobs")
-GCP_PROJECT_ID      = os.environ["GCP_PROJECT_ID"]
-FIRESTORE_DATABASE  = os.getenv("FIRESTORE_DATABASE", "(default)")
 MAX_JOB_ATTEMPTS    = 3
 POLL_INTERVAL_SEC   = 2
 
-db = firestore.AsyncClient(project=GCP_PROJECT_ID, database=FIRESTORE_DATABASE)
+# ── DB pool (module-level, initialised in worker_loop) ───────────────────────
+_pool: asyncpg.Pool | None = None
+
+
+async def _get_pool() -> asyncpg.Pool:
+    global _pool
+    if _pool is None:
+        _pool = await asyncpg.create_pool(
+            dsn=SUPABASE_DB_URL,
+            min_size=1,
+            max_size=5,
+            command_timeout=30,
+            init=_init_conn,
+        )
+    return _pool
+
+
+async def _init_conn(conn: asyncpg.Connection) -> None:
+    await conn.set_type_codec("jsonb", encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
+    await conn.set_type_codec("json",  encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
+
 
 # ── Graceful shutdown ─────────────────────────────────────────────────────────
 _shutdown = asyncio.Event()
 
-def _handle_sigterm(*_):
-    logger.info("SIGTERM received — finishing current job then exiting.")
+def _handle_signal(*_):
+    logger.info("Shutdown signal received — finishing current job then exiting.")
     _shutdown.set()
 
-signal.signal(signal.SIGTERM, _handle_sigterm)
-signal.signal(signal.SIGINT,  _handle_sigterm)
+signal.signal(signal.SIGTERM, _handle_signal)
+signal.signal(signal.SIGINT,  _handle_signal)
 
 
 # ── Redis helpers ─────────────────────────────────────────────────────────────
 async def _pop_job(client: httpx.AsyncClient) -> dict | None:
-    """Non-blocking LPOP from Upstash Redis queue."""
     try:
         resp = await client.get(
             f"{UPSTASH_REDIS_URL}/lpop/{REDIS_JOB_QUEUE}",
@@ -64,15 +78,12 @@ async def _pop_job(client: httpx.AsyncClient) -> dict | None:
         result = resp.json().get("result")
         if result:
             return json.loads(result)
-    except httpx.HTTPStatusError as e:
-        logger.error(f"Redis HTTP error: {e.response.status_code}")
     except Exception as e:
         logger.error(f"Redis pop error: {e}")
     return None
 
 
 async def _push_back(client: httpx.AsyncClient, job: dict) -> None:
-    """Push a job back to the TAIL of the queue for retry (RPUSH)."""
     try:
         await client.post(
             f"{UPSTASH_REDIS_URL}/rpush/{REDIS_JOB_QUEUE}",
@@ -84,50 +95,96 @@ async def _push_back(client: httpx.AsyncClient, job: dict) -> None:
         logger.error(f"Failed to re-queue job {job.get('job_id')}: {e}")
 
 
-# ── Firestore helpers ─────────────────────────────────────────────────────────
-async def _update_status(
+# ── DB helpers ────────────────────────────────────────────────────────────────
+async def _update_job(
     job_id: str,
     status: str,
     progress: int | None = None,
-    current_step: str | None = None,
+    step: str | None = None,
     error: str | None = None,
 ) -> None:
-    updates: dict = {
-        "status":     status,
-        "updated_at": datetime.now(timezone.utc),
-    }
+    sets = ["status = $1", "updated_at = NOW()"]
+    vals = [status]
+    i = 2
     if progress is not None:
-        updates["progress"] = progress
-    if current_step is not None:
-        updates["current_step"] = current_step
+        sets.append(f"progress = ${i}"); vals.append(progress); i += 1
+    if step is not None:
+        sets.append(f"current_step = ${i}"); vals.append(step); i += 1
     if error is not None:
-        updates["error_message"] = error[:1000]   # cap at 1 KB
+        sets.append(f"error_message = ${i}"); vals.append(error[:1000]); i += 1
     if status == "completed":
-        updates["completed_at"] = datetime.now(timezone.utc)
-    await db.collection("jobs").document(job_id).update(updates)
+        sets.append("completed_at = NOW()")
+
+    vals.append(job_id)
+    sql = f"UPDATE jobs SET {', '.join(sets)} WHERE job_id = ${i}"
+
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(sql, *vals)
 
 
-async def _increment_user_shorts(user_id: str, count: int) -> None:
-    """Atomically increment credits_used (= shorts generated) for the user."""
+async def _save_clips(job_id: str, user_id: str, clips: list[dict]) -> None:
+    """Bulk-insert clip rows and update job clip_count."""
+    if not clips:
+        return
+    import uuid
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            for c in clips:
+                await conn.execute(
+                    """
+                    INSERT INTO clips
+                        (clip_id, job_id, user_id, clip_url, thumbnail_url,
+                         duration, start_time, end_time, transcript_snippet,
+                         viral_score, top_title, bottom_tag, template_id)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+                    ON CONFLICT (clip_id) DO NOTHING
+                    """,
+                    c.get("clip_id", str(uuid.uuid4())),
+                    job_id, user_id,
+                    c.get("clip_url", ""),
+                    c.get("thumbnail_url", ""),
+                    float(c.get("duration", 0)),
+                    float(c.get("start_time", 0)),
+                    float(c.get("end_time", 0)),
+                    c.get("transcript_snippet", ""),
+                    float(c.get("viral_score", 0)),
+                    c.get("top_title", ""),
+                    c.get("bottom_tag", ""),
+                    c.get("template_id", "viral-hook"),
+                )
+            await conn.execute(
+                "UPDATE jobs SET clip_count = $1 WHERE job_id = $2",
+                len(clips), job_id,
+            )
+
+
+async def _increment_shorts(user_id: str, count: int) -> None:
+    """Atomically add to user's shorts-generated counter."""
     try:
-        user_ref = db.collection("users").document(user_id)
-        await user_ref.update({"credits_used": firestore.Increment(count)})
+        pool = await _get_pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE users SET credits_used = credits_used + $1 WHERE id = $2",
+                count, user_id,
+            )
         logger.info(f"User {user_id}: +{count} shorts credited")
     except Exception as e:
-        logger.warning(f"Failed to increment shorts for user {user_id}: {e}")
+        logger.warning(f"Could not increment shorts for {user_id}: {e}")
 
 
 # ── Job processor ─────────────────────────────────────────────────────────────
-async def _process_job(job: dict) -> None:
-    job_id    = job["job_id"]
-    user_id   = job["user_id"]
-    attempt   = job.get("_attempt", 1)
+async def _process_job(job: dict, redis_client: httpx.AsyncClient) -> None:
+    job_id  = job["job_id"]
+    user_id = job["user_id"]
+    attempt = job.get("_attempt", 1)
 
-    logger.info(f"[{job_id}] Starting (attempt {attempt}/{MAX_JOB_ATTEMPTS})")
-    await _update_status(job_id, "processing", 5, "Pipeline starting")
+    logger.info(f"[{job_id}] Processing (attempt {attempt}/{MAX_JOB_ATTEMPTS})")
+    await _update_job(job_id, "processing", 5, "Pipeline starting")
 
     async def _status_cb(step: str, pct: int):
-        await _update_status(job_id, "processing", pct, step)
+        await _update_job(job_id, "processing", pct, step)
 
     try:
         clips = await orchestrator.run_pipeline(
@@ -140,77 +197,71 @@ async def _process_job(job: dict) -> None:
             status_callback=_status_cb,
         )
 
-        # Persist results
-        await db.collection("jobs").document(job_id).update({
-            "clips":        clips,
-            "clip_count":   len(clips),
-            "status":       "completed",
-            "progress":     100,
-            "current_step": "Done",
-            "completed_at": datetime.now(timezone.utc),
-        })
+        # Save clips to Supabase
+        await _save_clips(job_id, user_id, clips)
 
-        # Increment user's shorts counter (= credits_used in the model)
-        await _increment_user_shorts(user_id, len(clips))
+        # Mark job completed
+        await _update_job(job_id, "completed", 100, "Done")
 
-        logger.info(f"[{job_id}] Completed — {len(clips)} clips generated.")
+        # Increment user's shorts counter
+        await _increment_shorts(user_id, len(clips))
+
+        logger.info(f"[{job_id}] Completed — {len(clips)} clips.")
 
     except ValueError as e:
-        # ValueError = user-facing validation error (e.g. duration exceeded)
-        # Do NOT retry — mark failed immediately
-        logger.warning(f"[{job_id}] Validation error (no retry): {e}")
-        await _update_status(job_id, "failed", error=str(e), current_step="Validation failed")
+        # Validation error — don't retry
+        logger.warning(f"[{job_id}] Validation error: {e}")
+        await _update_job(job_id, "failed", error=str(e), step="Validation failed")
 
     except Exception as e:
         logger.exception(f"[{job_id}] Pipeline error (attempt {attempt}): {e}")
         if attempt < MAX_JOB_ATTEMPTS:
-            # Bump attempt counter and re-queue
             job["_attempt"] = attempt + 1
-            logger.info(f"[{job_id}] Re-queuing for attempt {attempt + 1}")
-            async with httpx.AsyncClient() as c:
-                await _push_back(c, job)
-            await _update_status(
+            await _push_back(redis_client, job)
+            await _update_job(
                 job_id, "queued",
-                current_step=f"Retrying (attempt {attempt + 1}/{MAX_JOB_ATTEMPTS})"
+                step=f"Retrying (attempt {attempt + 1}/{MAX_JOB_ATTEMPTS})"
             )
         else:
-            await _update_status(
+            await _update_job(
                 job_id, "failed",
                 error=f"{type(e).__name__}: {str(e)[:500]}",
-                current_step="Failed after max retries",
+                step="Failed after max retries",
             )
 
 
 # ── Main loop ─────────────────────────────────────────────────────────────────
 async def worker_loop() -> None:
-    logger.info(f"Worker started — polling {REDIS_JOB_QUEUE} every {POLL_INTERVAL_SEC}s")
+    # Initialise DB pool on startup
+    await _get_pool()
+    logger.info(f"Worker started. Polling {REDIS_JOB_QUEUE} every {POLL_INTERVAL_SEC}s")
 
     consecutive_errors = 0
-
     async with httpx.AsyncClient() as redis_client:
         while not _shutdown.is_set():
             try:
                 job = await _pop_job(redis_client)
                 if job:
                     consecutive_errors = 0
-                    await _process_job(job)
+                    await _process_job(job, redis_client)
                 else:
                     await asyncio.sleep(POLL_INTERVAL_SEC)
             except Exception as e:
                 consecutive_errors += 1
-                backoff = min(2 ** consecutive_errors, 60)   # max 60s backoff
-                logger.error(f"Worker loop error ({consecutive_errors}): {e} — sleeping {backoff}s")
+                backoff = min(2 ** consecutive_errors, 60)
+                logger.error(f"Loop error #{consecutive_errors}: {e} — sleeping {backoff}s")
                 await asyncio.sleep(backoff)
 
-    logger.info("Worker loop exited cleanly.")
+    if _pool:
+        await _pool.close()
+    logger.info("Worker exited cleanly.")
 
 
 if __name__ == "__main__":
-    # Validate required env vars before booting
-    required = ["UPSTASH_REDIS_URL", "UPSTASH_REDIS_TOKEN", "GCP_PROJECT_ID"]
+    required = ["SUPABASE_DB_URL", "UPSTASH_REDIS_URL", "UPSTASH_REDIS_TOKEN"]
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
-        logger.critical(f"Missing required env vars: {missing}")
+        logger.critical(f"Missing env vars: {missing}")
         sys.exit(1)
 
     asyncio.run(worker_loop())

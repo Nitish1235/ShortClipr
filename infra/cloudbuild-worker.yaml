@@ -57,11 +57,11 @@ steps:
       - >-
         ENVIRONMENT=production,
         GCS_BUCKET_OUTPUT=shortclipr-output-clips,
-        REDIS_JOB_QUEUE=shortclipr:jobs,
-        FIRESTORE_DATABASE=(default)
+        REDIS_JOB_QUEUE=shortclipr:jobs
       - '--set-secrets'
       - >-
         GCP_PROJECT_ID=GCP_PROJECT_ID:latest,
+        SUPABASE_DB_URL=SUPABASE_DB_URL:latest,
         UPSTASH_REDIS_URL=UPSTASH_REDIS_URL:latest,
         UPSTASH_REDIS_TOKEN=UPSTASH_REDIS_TOKEN:latest,
         OPENAI_API_KEY=OPENAI_API_KEY:latest

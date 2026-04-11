@@ -2,9 +2,9 @@
 
 ## Architecture
 
-```
-Frontend (Vercel)
-    │ HTTPS
+```text
+Frontend — Cloud Run (shortclipr-frontend)
+    │ HTTPS Rest APIs
     ▼
 API — Cloud Run (shortclipr-api)     ◄── Google OAuth / JWT
     │ Upstash Redis RPUSH
@@ -12,155 +12,136 @@ API — Cloud Run (shortclipr-api)     ◄── Google OAuth / JWT
 Worker — Cloud Run (shortclipr-worker) ◄── OpenAI / FFmpeg / MediaPipe
     │
     ├── GCS (input-videos / output-clips)
-    └── Firestore (jobs, users)
+    └── Supabase (users, jobs, clips)
 ```
 
-## GCP Setup (one-time)
+## GCP & External Setup (Manual UI Instructions)
 
-### 1. Enable APIs
-```bash
-gcloud services enable \
-  run.googleapis.com \
-  cloudbuild.googleapis.com \
-  artifactregistry.googleapis.com \
-  secretmanager.googleapis.com \
-  firestore.googleapis.com \
-  storage.googleapis.com
-```
+### 1. Enable Google Cloud APIs
+1. Go to **Google Cloud Console** → **APIs & Services**.
+2. Click **Enable APIs and Services**.
+3. Search for and enable:
+   - **Cloud Run API**
+   - **Cloud Build API**
+   - **Artifact Registry API**
+   - **Secret Manager API**
+   - **Cloud Storage API**
 
-### 2. Create Artifact Registry repository
-```bash
-gcloud artifacts repositories create shortclipr \
-  --repository-format=docker \
-  --location=us-central1
-```
+### 2. Create Artifact Registry (Repository)
+1. In Cloud Console, search for **Artifact Registry**.
+2. Click **+ CREATE REPOSITORY**.
+3. Fill in details:
+   - **Name**: `shortclipr`
+   - **Format**: Docker
+   - **Location type**: Region
+   - **Region**: `us-central1` (or your preferred region)
+4. Click **CREATE**.
 
-### 3. Create GCS buckets
-```bash
-gsutil mb -l us-central1 gs://shortclipr-input-videos
-gsutil mb -l us-central1 gs://shortclipr-output-clips
+### 3. Create Cloud Storage Buckets (GCS)
+1. Search for **Cloud Storage** → **Buckets**.
+2. Create **two** buckets: `shortclipr-input-videos` and `shortclipr-output-clips`.
+3. For `shortclipr-output-clips` (Make it public):
+   - Click the bucket → **Permissions** tab → **Grant Access**.
+   - **New principals**: `allUsers`
+   - **Role**: `Storage Object Viewer`
+   - Save and Allow Public Access.
+4. For `shortclipr-input-videos` (Auto-delete after 7 days):
+   - Click the bucket → **Lifecycle** tab → **Add a rule**.
+   - **Condition**: Age = 7 days
+   - **Action**: Delete object.
 
-# Make output bucket objects publicly readable
-gsutil iam ch allUsers:objectViewer gs://shortclipr-output-clips
+### 4. Setup Supabase Database (PostgreSQL)
+1. Go to [Supabase Dashboard](https://supabase.com/dashboard).
+2. Create a **New Project**.
+3. Go to the **SQL Editor**, paste the contents of `infra/schema.sql` and click **Run**.
+4. Go to **Project Settings** → **Database** → **Connection string** → **URI**.
+5. Copy it and replace `[YOUR-PASSWORD]` with your actual db password. 
+   - *This is your `SUPABASE_DB_URL`.*
 
-# Input bucket: 7-day lifecycle to auto-delete uploaded source videos
-cat > /tmp/lifecycle.json << 'EOF'
-{"rule":[{"action":{"type":"Delete"},"condition":{"age":7}}]}
-EOF
-gsutil lifecycle set /tmp/lifecycle.json gs://shortclipr-input-videos
-```
+### 5. Create Service Accounts & Permissions (Crucial for Cloud Run)
+1. Search for **IAM & Admin** → **Service Accounts**.
+2. **Create Frontend Account**:
+   - Name: `shortclipr-frontend`, click Create and Continue.
+   - Roles to grant: `Cloud Run Invoker`. *(It doesn't need DB or GCS access, the API handles that).*
+   - Click Done.
+3. **Create API Account**:
+   - Name: `shortclipr-api`, click Create and Continue.
 
-### 4. Create Firestore database
-```bash
-gcloud firestore databases create --location=us-central1
-```
+   - Roles to grant: `Storage Object Admin`, `Secret Manager Secret Accessor`.
+   - Click Done.
+3. **Create Worker Account**:
+   - Name: `shortclipr-worker`, click Create and Continue.
+   - Roles to grant: `Storage Object Admin`, `Secret Manager Secret Accessor`.
+   - Click Done.
 
-### 5. Create Service Accounts
-```bash
-# API service account
-gcloud iam service-accounts create shortclipr-api \
-  --display-name="ShortClipr API"
+### 6. Store Secrets in Secret Manager
+1. Search for **Secret Manager** → **+ CREATE SECRET**.
+2. Create a secret for each of these (paste your actual value in "Secret value"):
+   - `GOOGLE_CLIENT_ID`
+   - `GOOGLE_CLIENT_SECRET`
+   - `JWT_SECRET_KEY`
+   - `GCP_PROJECT_ID`
+   - `SUPABASE_DB_URL`
+   - `UPSTASH_REDIS_URL`
+   - `UPSTASH_REDIS_TOKEN`
+   - `OPENAI_API_KEY`
+   - `DODO_PAYMENTS_API_KEY`
+   - `DODO_WEBHOOK_SECRET`
 
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:shortclipr-api@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/datastore.user"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:shortclipr-api@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/storage.objectAdmin"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:shortclipr-api@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
+### 7. Grant Cloud Build Access
+*This allows Cloud Build to deploy your code to Cloud Run.*
+1. Go to **IAM & Admin** → **IAM**.
+2. Find the principal ending in `@cloudbuild.gserviceaccount.com`. 
+   *(If you don't see it, check the "Include Google-provided role grants" box on the right).*
+3. Edit that principal (pencil icon) and add these roles:
+   - **Cloud Run Admin**
+   - **Service Account User**
+   - **Artifact Registry Writer**
+   - **Secret Manager Secret Accessor**
 
-# Worker service account
-gcloud iam service-accounts create shortclipr-worker \
-  --display-name="ShortClipr Worker"
+### 8. Set up Cloud Build Triggers
+1. Go to **Cloud Build** → **Triggers** → **+ CREATE TRIGGER**.
+2. **For the API**:
+   - **Name**: `deploy-api`
+   - **Event**: Push to a branch
+   - **Source**: Connect your GitHub repo, select branch `^main$`
+   - **Configuration**: Cloud Build configuration file (YAML)
+   - **Location**: Repository
+   - **Path**: `infra/cloudbuild-api.yaml`
+3. **For the Worker**:
+   - Duplicate the above steps, but name it `deploy-worker` and use path `infra/cloudbuild-worker.yaml`.
+4. **For the Frontend (IMPORTANT)**:
+   - Duplicate the above steps, name it `deploy-frontend`, use path `infra/cloudbuild-frontend.yaml`.
+   - Scroll down to the **Advanced** section in the Trigger setup → **Substitution Variables**.
+   - Add two variables:
+     - `_NEXT_PUBLIC_API_URL` = `https://<YOUR-API-CLOUD-RUN-URL>`
+     - `_NEXT_PUBLIC_GOOGLE_CLIENT_ID` = `your-google-client-id.apps.googleusercontent.com`
+   - *These are required at build time to freeze the env vars into your HTML.*
 
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:shortclipr-worker@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/datastore.user"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:shortclipr-worker@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/storage.objectAdmin"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:shortclipr-worker@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
-```
-
-### 6. Store secrets in Secret Manager
-```bash
-# For each secret:
-echo -n "your-value" | gcloud secrets create SECRET_NAME \
-  --data-file=- --replication-policy=automatic
-
-# Required secrets:
-# GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_SECRET_KEY,
-# GCP_PROJECT_ID, UPSTASH_REDIS_URL, UPSTASH_REDIS_TOKEN,
-# OPENAI_API_KEY, DODO_PAYMENTS_API_KEY, DODO_WEBHOOK_SECRET,
-# DODO_PRODUCT_PRO_50, DODO_PRODUCT_PRO_100, DODO_PRODUCT_PRO_200,
-# DODO_PRODUCT_PRO_400, DODO_PRODUCT_PRO_500
-```
-
-### 7. Set up Cloud Build triggers
-```bash
-# API trigger — fires on push to main that touches backend/api/**
-gcloud builds triggers create github \
-  --repo-name=shortclipr \
-  --repo-owner=YOUR_GITHUB_ORG \
-  --branch-pattern="^main$" \
-  --build-config=infra/cloudbuild-api.yaml \
-  --included-files="backend/api/**" \
-  --name="deploy-api"
-
-# Worker trigger
-gcloud builds triggers create github \
-  --repo-name=shortclipr \
-  --repo-owner=YOUR_GITHUB_ORG \
-  --branch-pattern="^main$" \
-  --build-config=infra/cloudbuild-worker.yaml \
-  --included-files="backend/worker/**" \
-  --name="deploy-worker"
-```
-
-### 8. Grant Cloud Build access to deploy
-```bash
-PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
-CB_SA="${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
-
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${CB_SA}" --role="roles/run.admin"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${CB_SA}" --role="roles/iam.serviceAccountUser"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${CB_SA}" --role="roles/artifactregistry.writer"
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${CB_SA}" --role="roles/secretmanager.secretAccessor"
-```
+---
 
 ## Dodo Payments Setup
 
-1. Create products in Dodo dashboard for each tier
-2. Set the product IDs as secrets (`DODO_PRODUCT_PRO_50` etc.)
-3. Add webhook URL: `https://your-api-domain.run.app/payments/webhook`
-4. Copy webhook secret → store as `DODO_WEBHOOK_SECRET`
+1. Create products in Dodo dashboard for each tier (Pro 50, Pro 100, etc).
+2. Set the product IDs as secrets (`DODO_PRODUCT_PRO_50` etc.) in Cloud Secret Manager.
+3. Add webhook URL in Dodo Dashboard: `https://your-api-domain.run.app/payments/webhook`
+4. Copy the webhook secret and store as `DODO_WEBHOOK_SECRET` in Secret Manager.
 
-## Firestore Indexes
+---
 
-Create these composite indexes in the Firestore console (or `firestore.indexes.json`):
+## Setting Up Cloud CDN for the Frontend (Optional but Recommended)
 
-```
-Collection: jobs
-  Fields: user_id ASC, created_at DESC
-```
+By default, Cloud Run provides a `*.run.app` URL. To get optimal speed and custom domains, put a load balancer in front of the frontend:
+1. Go to **Network services** → **Load balancing** → **Create Load Balancer**.
+2. Select **Application Load Balancer (HTTP/S)** → **Global load balancer (Classic)**.
+3. **Backend configuration**: Create a Serverless network endpoint group (NEG) pointing to the `shortclipr-frontend` service.
+4. **Enable Cloud CDN** on that backend.
+5. Add your SSL certificate and custom domain.
 
-## Frontend Deployment (Vercel)
 
-```bash
-# Set environment variables in Vercel dashboard:
-NEXT_PUBLIC_API_URL=https://shortclipr-api-xxxx-uc.a.run.app
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
-```
+---
 
-## Local Development
+## Local Development Environment
 
 ```bash
 # API
@@ -182,6 +163,4 @@ npm install
 npm run dev
 ```
 
-## Environment Variable Reference
-
-See `.env.example` in the project root for all variables with descriptions.
+See `.env.example` in the project root for detailed variable descriptions.

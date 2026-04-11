@@ -1,51 +1,57 @@
 steps:
   # ── Build ──────────────────────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
-    id: build-api
+    id: build-frontend
     args:
       - build
       - --cache-from
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:latest'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-frontend:latest'
       - -t
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:$COMMIT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-frontend:$COMMIT_SHA'
       - -t
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:latest'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-frontend:latest'
       - --build-arg
       - BUILDKIT_INLINE_CACHE=1
-      - backend/api
+      # Note: Next.js requires NEXT_PUBLIC variables during the BUILD step to hardcode them into the HTML/JS.
+      # You MUST provide these as substitution variables in the Cloud Build trigger settings!
+      - --build-arg
+      - 'NEXT_PUBLIC_API_URL=$_NEXT_PUBLIC_API_URL'
+      - --build-arg
+      - 'NEXT_PUBLIC_GOOGLE_CLIENT_ID=$_NEXT_PUBLIC_GOOGLE_CLIENT_ID'
+      - frontend
 
   # ── Push ───────────────────────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
-    id: push-api
+    id: push-frontend
     args:
       - push
       - '--all-tags'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api'
-    waitFor: [build-api]
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-frontend'
+    waitFor: [build-frontend]
 
   # ── Deploy to Cloud Run ────────────────────────────────────────────────────
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    id: deploy-api
+    id: deploy-frontend
     entrypoint: gcloud
     args:
       - run
       - deploy
-      - shortclipr-api
+      - shortclipr-frontend
       - '--image'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:$COMMIT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-frontend:$COMMIT_SHA'
       - '--region'
       - us-central1
       - '--platform'
       - managed
       - '--allow-unauthenticated'
       - '--port'
-      - '8000'
+      - '3000'
       - '--min-instances'
-      - '1'
+      - '0'     # Scales to 0 to save costs
       - '--max-instances'
       - '20'
       - '--concurrency'
-      - '80'
+      - '80'    # Next.js Node server can handle high concurrency
       - '--cpu'
       - '1'
       - '--memory'
@@ -53,24 +59,15 @@ steps:
       - '--timeout'
       - '60s'
       - '--set-env-vars'
-      - 'ENVIRONMENT=production,GCS_BUCKET_INPUT=shortclipr-input-videos,GCS_BUCKET_OUTPUT=shortclipr-output-clips'
-      - '--set-secrets'
       - >-
-        GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,
-        GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,
-        JWT_SECRET_KEY=JWT_SECRET_KEY:latest,
-        GCP_PROJECT_ID=GCP_PROJECT_ID:latest,
-        SUPABASE_DB_URL=SUPABASE_DB_URL:latest,
-        UPSTASH_REDIS_URL=UPSTASH_REDIS_URL:latest,
-        UPSTASH_REDIS_TOKEN=UPSTASH_REDIS_TOKEN:latest,
-        DODO_PAYMENTS_API_KEY=DODO_PAYMENTS_API_KEY:latest,
-        DODO_WEBHOOK_SECRET=DODO_WEBHOOK_SECRET:latest
+        NEXT_PUBLIC_API_URL=$_NEXT_PUBLIC_API_URL,
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID=$_NEXT_PUBLIC_GOOGLE_CLIENT_ID
       - '--service-account'
-      - 'shortclipr-api@$PROJECT_ID.iam.gserviceaccount.com'
-    waitFor: [push-api]
+      - 'shortclipr-frontend@$PROJECT_ID.iam.gserviceaccount.com'
+    waitFor: [push-frontend]
 
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-api:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-frontend:$COMMIT_SHA'
 
 options:
   logging: CLOUD_LOGGING_ONLY
