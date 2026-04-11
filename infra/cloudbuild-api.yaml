@@ -54,19 +54,9 @@ steps:
       - '60s'
       - '--set-env-vars'
       - 'ENVIRONMENT=production,GCS_BUCKET_INPUT=shortclipr-input-videos,GCS_BUCKET_OUTPUT=shortclipr-output-clips'
-      - '--set-secrets'
-      - >-
-        GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,
-        GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,
-        JWT_SECRET_KEY=JWT_SECRET_KEY:latest,
-        GCP_PROJECT_ID=GCP_PROJECT_ID:latest,
-        SUPABASE_DB_URL=SUPABASE_DB_URL:latest,
-        UPSTASH_REDIS_URL=UPSTASH_REDIS_URL:latest,
-        UPSTASH_REDIS_TOKEN=UPSTASH_REDIS_TOKEN:latest,
-        DODO_PAYMENTS_API_KEY=DODO_PAYMENTS_API_KEY:latest,
-        DODO_WEBHOOK_SECRET=DODO_WEBHOOK_SECRET:latest
       - '--service-account'
       - 'shortclipr-api@$PROJECT_ID.iam.gserviceaccount.com'
+
     waitFor: [push-api]
 
 images:
