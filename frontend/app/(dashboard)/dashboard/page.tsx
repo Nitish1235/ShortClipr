@@ -222,7 +222,7 @@ export default function DashboardPage() {
   };
 
   const activeTempl = TEMPLATES.find(t => t.id === selectedTemplate)!;
-  const credPct     = stats ? Math.round((stats.credits_used / stats.credits_limit) * 100) : 0;
+  const credPct     = stats ? Math.round((stats.shorts_generated / stats.shorts_limit) * 100) : 0;
 
   return (
     <div style={{ maxWidth: "1240px", margin: "0 auto", padding: "0 4px" }}>

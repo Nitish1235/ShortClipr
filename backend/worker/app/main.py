@@ -278,10 +278,10 @@ if __name__ == "__main__":
     required = ["SUPABASE_DB_URL", "UPSTASH_REDIS_URL", "UPSTASH_REDIS_TOKEN"]
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
-        logger.critical(f"Missing env vars: {missing}")
-        sys.exit(1)
-
-    # Start dummy HTTP server in a background daemon thread
-    threading.Thread(target=_run_dummy_server, daemon=True).start()
-
-    asyncio.run(worker_loop())
+        logger.critical(f"Missing env vars: {missing}. Cloud Run deployment succeeded, but worker is sleeping. Please add env vars in the UI!")
+        # Run the dummy server on the main thread to keep the container alive and healthy
+        _run_dummy_server()
+    else:
+        # We have the secrets! Start the dummy HTTP server in background, then run the worker
+        threading.Thread(target=_run_dummy_server, daemon=True).start()
+        asyncio.run(worker_loop())

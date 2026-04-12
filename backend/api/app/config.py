@@ -11,12 +11,13 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "https://shortclipr.com,http://localhost:3000"
 
     # ── Google OAuth ───────────────────────────────────────────────────────────
-    GOOGLE_CLIENT_ID:     str
-    GOOGLE_CLIENT_SECRET: str
+    # ── Google OAuth ───────────────────────────────────────────────────────────
+    GOOGLE_CLIENT_ID:     str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI:  str = "http://localhost:8000/auth/callback"
 
     # ── JWT ────────────────────────────────────────────────────────────────────
-    JWT_SECRET_KEY:                  str
+    JWT_SECRET_KEY:                  str = ""
     JWT_ALGORITHM:                   str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     JWT_REFRESH_TOKEN_EXPIRE_DAYS:   int = 30
@@ -24,16 +25,16 @@ class Settings(BaseSettings):
     # ── Supabase — Postgres (users, jobs, clips) ───────────────────────────────
     # Supabase Dashboard → Project Settings → Database → Connection string
     # Format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
-    SUPABASE_DB_URL: str
+    SUPABASE_DB_URL: str = ""
 
     # ── Google Cloud Storage (video files only) ────────────────────────────────
-    GCP_PROJECT_ID:    str
+    GCP_PROJECT_ID:    str = ""
     GCS_BUCKET_INPUT:  str = "shortclipr-input-videos"
     GCS_BUCKET_OUTPUT: str = "shortclipr-output-clips"
 
     # ── Upstash Redis (job queue + real-time status) ───────────────────────────
-    UPSTASH_REDIS_URL:   str
-    UPSTASH_REDIS_TOKEN: str
+    UPSTASH_REDIS_URL:   str = ""
+    UPSTASH_REDIS_TOKEN: str = ""
     REDIS_JOB_QUEUE:     str = "shortclipr:jobs"
 
     # ── Dodo Payments ──────────────────────────────────────────────────────────
