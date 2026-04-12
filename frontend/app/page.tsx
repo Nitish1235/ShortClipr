@@ -2,6 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 
 export default function LandingPage() {
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const LOGIN_URL = `${API}/auth/login`;
+
   return (
     <main>
       {/* ===================== NAVBAR ===================== */}
@@ -14,8 +17,8 @@ export default function LandingPage() {
           <li><a href="#pricing">Pricing</a></li>
         </ul>
         <div className="navbar-actions">
-          <a href="/login" className="btn-ghost">Log in</a>
-          <a href="/signup" className="btn-primary">Get Started Free</a>
+          <a href={LOGIN_URL} className="btn-ghost">Log in</a>
+          <a href={LOGIN_URL} className="btn-primary">Get Started Free</a>
         </div>
       </nav>
 
@@ -126,7 +129,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <a href="/signup" className="btn-cta-large animate-in delay-3" id="hero-cta">
+        <a href={LOGIN_URL} className="btn-cta-large animate-in delay-3" id="hero-cta">
           Create My Shorts Now
         </a>
       </section>
@@ -298,7 +301,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <a href="/signup" className="btn-cta-large" id="see-action-cta">
+        <a href={LOGIN_URL} className="btn-cta-large" id="see-action-cta">
           See It In Action
         </a>
       </section>
@@ -494,7 +497,7 @@ export default function LandingPage() {
       <footer className="footer-cta" id="pricing">
         <h2 className="footer-cta-title">Start creating viral shorts today</h2>
         <p className="footer-cta-sub">No credit card required. 3 free shorts every week.</p>
-        <a href="/signup" className="btn-cta-large" id="footer-cta-btn">
+        <a href={LOGIN_URL} className="btn-cta-large" id="footer-cta-btn">
           Create My Shorts Now — It&apos;s Free
         </a>
 
