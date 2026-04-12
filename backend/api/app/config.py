@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     APP_VERSION:    str  = "1.0.0"
     DEBUG:          bool = False
     ENVIRONMENT:    str  = "production"
-    ALLOWED_ORIGINS: str = "https://shortclipr.com,http://localhost:3000"
+    ALLOWED_ORIGINS: str = "https://shortclipr.com,https://www.shortclipr.com,http://localhost:3000"
 
     # ── Google OAuth ───────────────────────────────────────────────────────────
     # ── Google OAuth ───────────────────────────────────────────────────────────

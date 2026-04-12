@@ -126,14 +126,17 @@ async def health():
 async def readiness():
     """Readiness probe — checks critical dependencies."""
     checks: dict = {}
-    # Quick Firestore ping
+    # Database ping
     try:
         from app.services.database import _get_db
-        db = _get_db()
-        await db.collection("_health").document("ping").get()
-        checks["firestore"] = "ok"
+        pool = _get_db()
+        if not pool:
+            raise Exception("Database pool not initialized")
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        checks["database"] = "ok"
     except Exception as e:
-        checks["firestore"] = f"error: {e}"
+        checks["database"] = f"error: {str(e)[:100]}"
 
     all_ok = all(v == "ok" for v in checks.values())
     return JSONResponse(
