@@ -8,8 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 RUN pip install --no-cache-dir --upgrade pip wheel setuptools
-RUN pip install --no-cache-dir --prefer-binary --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 
 # ── Stage 2: runtime ─────────────────────────────────────────────────────────
@@ -20,6 +23,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
+    PATH="/opt/venv/bin:$PATH" \
     # Suppress MediaPipe noisy logs
     GLOG_minloglevel=2 \
     TF_CPP_MIN_LOG_LEVEL=3
@@ -44,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy installed Python packages from builder
-COPY --from=builder /install /usr/local
+COPY --from=builder /opt/venv /opt/venv
 
 # Create non-root user
 RUN addgroup --system workergroup && adduser --system --ingroup workergroup workeruser
