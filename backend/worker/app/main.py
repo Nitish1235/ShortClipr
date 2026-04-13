@@ -47,6 +47,8 @@ async def _get_pool() -> asyncpg.Pool:
             min_size=1,
             max_size=5,
             command_timeout=30,
+            statement_cache_size=0,
+            max_inactive_connection_lifetime=300,
             init=_init_conn,
         )
     return _pool
