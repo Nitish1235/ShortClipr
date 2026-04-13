@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import TemplateShowcase from "./components/TemplateShowcase";
+import PricingSection from "./components/PricingSection";
 
 export default function LandingPage() {
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -9,7 +11,9 @@ export default function LandingPage() {
     <main>
       {/* ===================== NAVBAR ===================== */}
       <nav className="navbar">
-        <a href="#" className="navbar-logo">ShortClipr</a>
+        <a href="/" className="navbar-logo" style={{ display: "flex", alignItems: "center" }}>
+          <Image src="/logo-horizontal-light.svg" alt="ShortClipr Logo" width={160} height={46} priority />
+        </a>
         <ul className="navbar-links">
           <li><a href="#how-it-works">How It Works</a></li>
           <li><a href="#features">Features</a></li>
@@ -24,7 +28,9 @@ export default function LandingPage() {
 
       {/* ===================== HERO ===================== */}
       <section className="hero" id="hero">
-        <p className="hero-logo">ShortClipr</p>
+        <div style={{ marginBottom: "28px" }}>
+          <Image src="/logo-horizontal-light.svg" alt="ShortClipr logo" width={140} height={40} priority />
+        </div>
 
         <h1 className="hero-title animate-in">
           One upload. Multiple<br />viral-ready shorts.
@@ -244,61 +250,8 @@ export default function LandingPage() {
           extract your best moments automatically
         </p>
 
-        <div className="clips-grid">
-          {/* Far left */}
-          <div className="clip-card clip-far">
-            <div className="clip-bars">
-              <div className="bar" /><div className="bar" /><div className="bar" />
-            </div>
-            <Image src="/short-clip-1.png" alt="Clip 1" width={130} height={200} className="clip-img" />
-          </div>
-
-          {/* Side left */}
-          <div className="clip-card clip-side">
-            <div className="clip-bars">
-              <div className="bar" /><div className="bar" /><div className="bar" />
-            </div>
-            <Image src="/short-clip-2.png" alt="Clip 2" width={150} height={220} className="clip-img" />
-            <div className="clip-play-overlay">
-              <div className="clip-play-btn">
-                <svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9" /></svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Center/Active – Speaker */}
-          <div className="clip-card clip-active">
-            <div className="clip-bars">
-              <div className="bar" /><div className="bar" /><div className="bar" />
-            </div>
-            <Image src="/speaker.png" alt="Featured clip" width={180} height={260} className="clip-img" />
-            <div className="clip-play-overlay">
-              <div className="clip-play-btn">
-                <svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9" /></svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Side right */}
-          <div className="clip-card clip-side">
-            <div className="clip-bars">
-              <div className="bar" /><div className="bar" /><div className="bar" />
-            </div>
-            <Image src="/short-clip-1.png" alt="Clip 4" width={150} height={220} className="clip-img" />
-            <div className="clip-play-overlay">
-              <div className="clip-play-btn">
-                <svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9" /></svg>
-              </div>
-            </div>
-          </div>
-
-          {/* Far right */}
-          <div className="clip-card clip-far">
-            <div className="clip-bars">
-              <div className="bar" /><div className="bar" /><div className="bar" />
-            </div>
-            <Image src="/short-clip-2.png" alt="Clip 5" width={130} height={200} className="clip-img" />
-          </div>
+        <div style={{ marginTop: "40px", marginBottom: "40px" }}>
+          <TemplateShowcase />
         </div>
 
         <a href={LOGIN_URL} className="btn-cta-large" id="see-action-cta">
@@ -308,7 +261,9 @@ export default function LandingPage() {
 
       {/* ===================== FEATURES ===================== */}
       <section className="features" id="features">
-        <p className="hero-logo">ShortClipr</p>
+        <div style={{ marginBottom: "24px" }}>
+           <Image src="/favicon.svg" alt="Ghost Logo" width={48} height={48} priority />
+        </div>
         <div className="features-badge" id="features-badge">
           Feature highlights &nbsp;›
         </div>
@@ -493,6 +448,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ===================== PRICING SECTION ===================== */}
+      <PricingSection />
+
       {/* ===================== FOOTER CTA ===================== */}
       <footer className="footer-cta" id="pricing">
         <h2 className="footer-cta-title">Start creating viral shorts today</h2>
@@ -502,7 +460,10 @@ export default function LandingPage() {
         </a>
 
         <div className="footer-links">
-          <span className="footer-brand">© 2025 ShortClipr</span>
+          <span className="footer-brand" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <img src="/favicon.svg" alt="Ghost" width="24" height="24" />
+            © 2025 ShortClipr
+          </span>
           <a href="/privacy">Privacy Policy</a>
           <a href="/terms">Terms of Service</a>
           <a href="/contact">Contact</a>

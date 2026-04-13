@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="700" height="200" viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Ghost on left -->
+  <g transform="translate(10, 0)">
+    
+  <path d="M 45 160 
+           C 35 125 40 110 40 110 
+           C 25 105 25 85 40 90
+           C 40 25 170 25 170 90
+           C 185 85 185 105 170 110
+           C 170 110 175 125 165 160
+           C 150 140 140 140 135 165
+           C 125 145 110 145 100 165
+           C 90 145 75 145 65 165
+           C 60 140 50 140 45 160 Z"
+        fill="#ffffff" stroke="#1A1B26" stroke-width="9" stroke-linejoin="round" />
+  
+  <!-- Subtle Grey Shadow on Left Side -->
+  <path d="M 45 160 
+           C 35 125 40 110 40 110 
+           C 25 105 25 85 40 90
+           C 40 65 50 50 65 65
+           C 55 85 60 110 60 110
+           C 50 125 60 145 60 145
+           C 55 150 50 155 45 160 Z"
+        fill="#F1F5F9" />
+
+  <!-- Body fabric fold (Right side) -->
+  <path d="M 130 110 C 135 130 135 150 125 165" fill="none" stroke="#1A1B26" stroke-width="5" stroke-linecap="round" />
+  
+  <!-- Top Right Highlight curve -->
+  <path d="M 120 45 A 50 50 0 0 1 150 80" fill="none" stroke="#1A1B26" stroke-width="5" stroke-linecap="round" />
+  <circle cx="155" cy="94" r="3.5" fill="#1A1B26" />
+
+  <!-- Face -->
+  <circle cx="90" cy="95" r="10.5" fill="#1A1B26" />
+  <circle cx="87" cy="92" r="3.5" fill="#ffffff" />
+  
+  <circle cx="130" cy="95" r="10.5" fill="#1A1B26" />
+  <circle cx="127" cy="92" r="3.5" fill="#ffffff" />
+
+  <path d="M 103 106 C 106 114 114 114 117 106" fill="none" stroke="#1A1B26" stroke-width="5" stroke-linecap="round" />
+
+  <!-- Action lines / Sparkles -->
+  <line x1="145" y1="35" x2="157" y2="15" stroke="#1A1B26" stroke-width="6" stroke-linecap="round" />
+  <line x1="165" y1="45" x2="185" y2="35" stroke="#1A1B26" stroke-width="6" stroke-linecap="round" />
+
+  </g>
+  <!-- Text on right -->
+  <text x="210" y="125" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-weight="800" font-size="82" fill="#1A1B26" letter-spacing="-3">ShortClipr</text>
+  <circle cx="615" cy="115" r="8" fill="#00B4A6" />
+</svg>
