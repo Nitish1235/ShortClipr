@@ -5,7 +5,7 @@ import PricingSection from "./components/PricingSection";
 
 export default function LandingPage() {
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const LOGIN_URL = `${API}/auth/login`;
+  const LOGIN_URL = `${API}/auth/google`;
 
   return (
     <main>
@@ -449,10 +449,27 @@ export default function LandingPage() {
       </section>
 
       {/* ===================== PRICING SECTION ===================== */}
-      <PricingSection />
+      <section
+        id="pricing"
+        style={{
+          background: "linear-gradient(160deg, #0A0F1C 0%, #0F172A 60%, #0A0F1C 100%)",
+          padding: "100px 0 120px",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        {/* Subtle radial glow */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(20,184,166,0.07) 0%, transparent 70%)",
+        }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <PricingSection />
+        </div>
+      </section>
 
       {/* ===================== FOOTER CTA ===================== */}
-      <footer className="footer-cta" id="pricing">
+      <footer className="footer-cta">
         <h2 className="footer-cta-title">Start creating viral shorts today</h2>
         <p className="footer-cta-sub">No credit card required. 3 free shorts every week.</p>
         <a href={LOGIN_URL} className="btn-cta-large" id="footer-cta-btn">

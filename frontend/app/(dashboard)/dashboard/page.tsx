@@ -61,13 +61,31 @@ const TEMPLATES = [
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+function getAuthToken() {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp('(^| )access_token=([^;]+)'));
+  return match ? match[2] : null;
+}
+
 async function apiFetch(path: string, opts?: RequestInit) {
+  const headers = new Headers(opts?.headers || {});
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  
+  const token = getAuthToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
   const res = await fetch(`${API}${path}`, {
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
     ...opts,
+    headers,
   });
-  if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+  
+  if (!res.ok) {
+    if (res.status === 401 && typeof window !== "undefined") {
+      window.location.href = `${API}/auth/google`; // auto-redirect to login
+    }
+    throw new Error(`${res.status}: ${await res.text()}`);
+  }
   return res.json();
 }
 
@@ -179,8 +197,12 @@ export default function DashboardPage() {
       if (uploadFile) {
         const form = new FormData();
         form.append("file", uploadFile);
+        const headers = new Headers();
+        const token = getAuthToken();
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+
         const uploadRes = await fetch(`${API}/videos/upload`, {
-          method: "POST", credentials: "include", body: form,
+          method: "POST", credentials: "include", body: form, headers
         });
         if (!uploadRes.ok) throw new Error("Upload failed");
         const { url } = await uploadRes.json();
