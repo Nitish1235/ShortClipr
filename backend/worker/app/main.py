@@ -33,7 +33,8 @@ UPSTASH_REDIS_URL   = os.environ["UPSTASH_REDIS_URL"]
 UPSTASH_REDIS_TOKEN = os.environ["UPSTASH_REDIS_TOKEN"]
 REDIS_JOB_QUEUE     = os.getenv("REDIS_JOB_QUEUE", "shortclipr:jobs")
 MAX_JOB_ATTEMPTS    = 3
-POLL_INTERVAL_SEC   = 2
+MIN_POLL_INTERVAL_SEC = 2
+MAX_POLL_INTERVAL_SEC = 15
 
 # ── DB pool (module-level, initialised in worker_loop) ───────────────────────
 _pool: asyncpg.Pool | None = None
@@ -238,18 +239,26 @@ async def _process_job(job: dict, redis_client: httpx.AsyncClient) -> None:
 async def worker_loop() -> None:
     # Initialise DB pool on startup
     await _get_pool()
-    logger.info(f"Worker started. Polling {REDIS_JOB_QUEUE} every {POLL_INTERVAL_SEC}s")
+    logger.info(f"Worker started. Polling {REDIS_JOB_QUEUE} natively balancing between min {MIN_POLL_INTERVAL_SEC}s and max {MAX_POLL_INTERVAL_SEC}s")
 
     consecutive_errors = 0
+    current_poll_interval = MIN_POLL_INTERVAL_SEC
+
+    # Hide httpx info logs to clean up your Cloud Run logs
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
     async with httpx.AsyncClient() as redis_client:
         while not _shutdown.is_set():
             try:
                 job = await _pop_job(redis_client)
                 if job:
                     consecutive_errors = 0
+                    current_poll_interval = MIN_POLL_INTERVAL_SEC # Reset polling speed when busy
                     await _process_job(job, redis_client)
                 else:
-                    await asyncio.sleep(POLL_INTERVAL_SEC)
+                    # Dynamically back off if queue is empty to save Upstash limits
+                    await asyncio.sleep(current_poll_interval)
+                    current_poll_interval = min(current_poll_interval + 1.0, MAX_POLL_INTERVAL_SEC)
             except Exception as e:
                 consecutive_errors += 1
                 backoff = min(2 ** consecutive_errors, 60)

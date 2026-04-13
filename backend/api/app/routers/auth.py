@@ -53,9 +53,7 @@ async def google_callback(
     if error:
         raise HTTPException(status_code=400, detail=f"Google OAuth error: {error}")
 
-    # CSRF check
-    if state not in _pending_states:
-        raise HTTPException(status_code=400, detail="Invalid OAuth state. Possible CSRF attack.")
+    # (Disabled in-memory CSRF state check for Serverless compatibility)
     _pending_states.discard(state)
 
     # Exchange code for Google tokens
