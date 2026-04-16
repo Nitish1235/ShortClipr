@@ -23,6 +23,30 @@
   --radius-card: 20px;
   --radius-pill: 50px;
   --shadow-card: 0 2px 20px rgba(0, 0, 0, 0.07);
+
+  /* Shared Dashboard Variables (Light Mode Default) */
+  --dash-bg: #F7F8FA;
+  --dash-nav-bg: #FFFFFF;
+  --dash-border: #E5E7EB;
+  --dash-text-main: #111827;
+  --dash-text-muted: #6B7280;
+  --dash-card-bg: #FFFFFF;
+  --dash-input-bg: #F9FAFB;
+  --dash-hover: #F3F4F6;
+  --dash-accent: rgba(20, 184, 166, 0.08);
+}
+
+/* Dark Mode Overrides for Dashboard */
+html.dark:not([data-temp-disable-dark]) {
+  --dash-bg: #0B0E14;
+  --dash-nav-bg: #151A24;
+  --dash-border: #2A3143;
+  --dash-text-main: #FFFFFF;
+  --dash-text-muted: #9CA3AF;
+  --dash-card-bg: #151A24;
+  --dash-input-bg: #1C2333;
+  --dash-hover: #1E2738;
+  --dash-accent: rgba(20, 184, 166, 0.15);
 }
 
 html {
@@ -1076,4 +1100,14 @@ body {
   .toc-link { border-left:none; background:rgba(0,0,0,0.05); padding:4px 12px; border-radius:20px; }
   .contact-grid { grid-template-columns: 1fr; }
   .legal-footer-inner { flex-direction: column; align-items: flex-start; }
+}
+
+/* ==================== DASHBOARD MOBILE RESPONSE ==================== */
+@media (min-width: 769px) {
+  .md-hidden { display: none !important; }
+  .md-main-offset { margin-left: 240px !important; }
+}
+@media (max-width: 768px) {
+  .mobile-search-hidden { display: none !important; }
+  .dashboard-content-scroll { padding: 16px !important; }
 }

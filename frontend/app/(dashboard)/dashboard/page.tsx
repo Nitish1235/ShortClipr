@@ -37,26 +37,24 @@ type UserStats = {
 
 // ─── Template catalog ─────────────────────────────────────────────────────────
 const TEMPLATES = [
-  { id: "viral-hook",          name: "Viral Hook",          emoji: "🔥", desc: "Big hook + zoom-in" },
-  { id: "satisfying-reveal",   name: "Satisfying Reveal",   emoji: "🏆", desc: "Cinema reveal" },
-  { id: "luxury-shock",        name: "Luxury Shock",        emoji: "✨", desc: "Glow + luxury" },
-  { id: "epic-pov",            name: "Epic POV",            emoji: "⛰️", desc: "POV letterbox" },
-  { id: "life-changing",       name: "Life Changing",       emoji: "🌟", desc: "Soft vignette" },
-  { id: "peak-satisfaction",   name: "Peak Satisfaction",   emoji: "🔝", desc: "Cinema-crisp" },
-  { id: "plot-twist-reaction", name: "Plot Twist Reaction", emoji: "😱", desc: "Strong face glow" },
-  { id: "luxury-reveal",       name: "Luxury Reveal",       emoji: "💎", desc: "High-gloss shine" },
-  { id: "cinematic-focus",     name: "Cinematic Focus",     emoji: "🎬", desc: "Letterbox focus" },
-  { id: "satisfying-asmr",     name: "Satisfying ASMR",    emoji: "🎧", desc: "Soft warmth" },
-  { id: "plot-twist",          name: "Plot Twist",          emoji: "😲", desc: "Warm face glow" },
-  { id: "dreamy-transition",   name: "Dreamy Transition",   emoji: "🌙", desc: "Dream blur" },
-  { id: "flex-mode",           name: "Flex Mode",           emoji: "💰", desc: "High contrast" },
-  { id: "emotional-hit",       name: "Emotional Hit",       emoji: "💔", desc: "Muted blur" },
-  { id: "trend-jack",          name: "Trend Jack",          emoji: "🚀", desc: "Snap zoom" },
-  { id: "full-stack",          name: "Full Stack",          emoji: "🎯", desc: "Full cinematic" },
-  { id: "minimal-clean",       name: "Minimal Clean",       emoji: "⬜", desc: "Pure minimal" },
-  { id: "max-energy",          name: "Max Energy",          emoji: "⚡", desc: "Glow + zoom" },
-  { id: "storytelling",        name: "Storytelling",        emoji: "📖", desc: "Soft narrative" },
-  { id: "meme-style",          name: "Meme Style",          emoji: "💀", desc: "Punchy contrast" },
+  { id: "viral-hook",          name: "Viral Hook",          emoji: "🔥", desc: "Big hook + zoom-in", image: "/templates/viral-hook.jpg" },
+  { id: "satisfying-reveal",   name: "Satisfying Reveal",   emoji: "🏆", desc: "Cinema reveal", image: "/templates/satisfying-reveal.jpg" },
+  { id: "luxury-shock",        name: "Luxury Shock",        emoji: "✨", desc: "Glow + luxury", image: "/templates/luxury-shock.jpg" },
+  { id: "epic-pov",            name: "Epic POV",            emoji: "⛰️", desc: "POV letterbox", image: "/templates/epic-pov.jpg" },
+  { id: "life-changing",       name: "Life Changing",       emoji: "🌟", desc: "Soft vignette", image: "/templates/life-changing.jpg" },
+  { id: "peak-satisfaction",   name: "Peak Satisfaction",   emoji: "🔝", desc: "Cinema-crisp", image: "/templates/peak-satisfaction.jpg" },
+  { id: "plot-twist-reaction", name: "Plot Twist Reaction", emoji: "😱", desc: "Strong face glow", image: "/templates/plot-twist-reaction.jpg" },
+  { id: "luxury-reveal",       name: "Luxury Reveal",       emoji: "💎", desc: "High-gloss shine", image: "/templates/luxury-reveal.jpg" },
+  { id: "cinematic-focus",     name: "Cinematic Focus",     emoji: "🎬", desc: "Letterbox focus", image: "/templates/cinematic-focus.jpg" },
+  { id: "satisfying-asmr",     name: "Satisfying ASMR",     emoji: "🎧", desc: "Soft warmth", image: "/templates/satisfying-asmr.jpg" },
+  { id: "plot-twist",          name: "Plot Twist",          emoji: "😲", desc: "Warm face glow", image: "/templates/plot-twist.jpg" },
+  { id: "dreamy-transition",   name: "Dreamy Transition",   emoji: "🌙", desc: "Dream blur", image: "/templates/dreamy-transition.jpg" },
+  { id: "flex-mode",           name: "Flex Mode",           emoji: "💰", desc: "High contrast", image: "/templates/flex-mode.jpg" },
+  { id: "emotional-hit",       name: "Emotional Hit",       emoji: "💔", desc: "Muted blur", image: "/templates/emotional-hit.jpg" },
+  { id: "trend-jack",          name: "Trend Jack",          emoji: "🚀", desc: "Snap zoom", image: "/templates/trend-jack.jpg" },
+  { id: "full-stack",          name: "Full Stack",          emoji: "🎯", desc: "Full cinematic", image: "/templates/full-stack.jpg" },
+  { id: "minimal-clean",       name: "Minimal Clean",       emoji: "⬜", desc: "Pure minimal", image: "/templates/minimal-clean.jpg" },
+  { id: "max-energy",          name: "Max Energy",          emoji: "⚡", desc: "Glow + zoom", image: "/templates/max-energy.jpg" },
 ];
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -96,7 +94,7 @@ const STATUS_COLOR: Record<string, string> = {
   processing: "#14B8A6",
   completed:  "#10B981",
   failed:     "#EF4444",
-  cancelled:  "#9CA3AF",
+  cancelled:  "var(--dash-text-muted)",
 };
 const STATUS_BG: Record<string, string> = {
   pending:    "#FFFBEB",
@@ -104,7 +102,7 @@ const STATUS_BG: Record<string, string> = {
   processing: "#F0FDFA",
   completed:  "#ECFDF5",
   failed:     "#FEF2F2",
-  cancelled:  "#F9FAFB",
+  cancelled:  "var(--dash-input-bg)",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -252,23 +250,23 @@ export default function DashboardPage() {
       {/* ── TOP HEADER ───────────────────────────────────────────────── */}
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: "28px", flexWrap: "wrap", gap: "16px" }}>
         <div>
-          <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#111827", margin: 0, letterSpacing: "-0.5px" }}>
+          <h1 style={{ fontSize: "26px", fontWeight: 800, color: "var(--dash-text-main)", margin: 0, letterSpacing: "-0.5px" }}>
             Dashboard
           </h1>
-          <p style={{ fontSize: "14px", color: "#6B7280", margin: "4px 0 0" }}>
+          <p style={{ fontSize: "14px", color: "var(--dash-text-muted)", margin: "4px 0 0" }}>
             Turn long videos into viral shorts with AI
           </p>
         </div>
 
         {/* Shorts bar */}
         {stats && (
-          <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "12px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ background: "var(--dash-card-bg)", border: "1px solid #E5E7EB", borderRadius: "12px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "16px" }}>
             {/* Numbers */}
             <div>
-              <p style={{ fontSize: "11px", color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 3px" }}>Shorts</p>
-              <p style={{ fontSize: "15px", fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1 }}>
+              <p style={{ fontSize: "11px", color: "var(--dash-text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 3px" }}>Shorts</p>
+              <p style={{ fontSize: "15px", fontWeight: 800, color: "var(--dash-text-main)", margin: 0, lineHeight: 1 }}>
                 {stats.shorts_generated}
-                <span style={{ color: "#9CA3AF", fontWeight: 400, fontSize: "13px" }}> / {stats.shorts_limit}</span>
+                <span style={{ color: "var(--dash-text-muted)", fontWeight: 400, fontSize: "13px" }}> / {stats.shorts_limit}</span>
               </p>
             </div>
 
@@ -279,7 +277,7 @@ export default function DashboardPage() {
                 const barColor = pct >= 90 ? "#EF4444" : pct >= 70 ? "#F59E0B" : "#14B8A6";
                 return (
                   <>
-                    <div style={{ height: "6px", background: "#F3F4F6", borderRadius: "4px", overflow: "hidden" }}>
+                    <div style={{ height: "6px", background: "var(--dash-hover)", borderRadius: "4px", overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: "4px", transition: "width 0.4s" }} />
                     </div>
                     <p style={{ fontSize: "10px", color: barColor, margin: "3px 0 0", textAlign: "right", fontWeight: 600 }}>
@@ -301,13 +299,13 @@ export default function DashboardPage() {
       </div>
 
       {/* ── TABS ─────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: "4px", background: "#F3F4F6", borderRadius: "12px", padding: "4px", marginBottom: "28px", width: "fit-content" }}>
+      <div style={{ display: "flex", gap: "4px", background: "var(--dash-hover)", borderRadius: "12px", padding: "4px", marginBottom: "28px", width: "fit-content" }}>
         {(["create","jobs","clips"] as const).map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)} style={{
             padding: "8px 22px", borderRadius: "9px", border: "none", cursor: "pointer",
             fontSize: "13px", fontWeight: 600, transition: "all 0.15s",
-            background: activeTab === tab ? "#fff" : "transparent",
-            color: activeTab === tab ? "#111827" : "#6B7280",
+            background: activeTab === tab ? "var(--dash-card-bg)" : "transparent",
+            color: activeTab === tab ? "var(--dash-text-main)" : "var(--dash-text-muted)",
             boxShadow: activeTab === tab ? "0 1px 6px rgba(0,0,0,0.08)" : "none",
           }}>
             {tab === "create" ? "✦ Create" : tab === "jobs" ? "⚙ Jobs" : "▶ My Clips"}
@@ -319,18 +317,18 @@ export default function DashboardPage() {
           TAB: CREATE
       ════════════════════════════════════════════════════════════════ */}
       {activeTab === "create" && (
-        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px", alignItems: "start" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "20px", alignItems: "start" }}>
 
           {/* ── LEFT: Options panel ─────────────────────────────────── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px", flex: "1 1 300px", maxWidth: "360px" }}>
 
             {/* Generator Settings */}
             <Panel title="Generator Settings">
               {/* Output count */}
               <OptionGroup label="Number of Shorts">
-                <div style={{ display: "flex", background: "#F3F4F6", borderRadius: "10px", padding: "3px", gap: "3px" }}>
+                <div style={{ display: "flex", background: "var(--dash-hover)", borderRadius: "10px", padding: "3px", gap: "3px" }}>
                   {(["auto", 1, 3, 5] as const).map(v => (
-                    <button key={v} onClick={() => setShortsCount(v)} style={{ flex: 1, padding: "7px 4px", borderRadius: "7px", border: "none", fontSize: "12px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s", background: shortsCount === v ? "#14B8A6" : "transparent", color: shortsCount === v ? "white" : "#6B7280" }}>
+                    <button key={v} onClick={() => setShortsCount(v)} style={{ flex: 1, padding: "7px 4px", borderRadius: "7px", border: "none", fontSize: "12px", fontWeight: 600, cursor: "pointer", transition: "all 0.15s", background: shortsCount === v ? "#14B8A6" : "transparent", color: shortsCount === v ? "white" : "var(--dash-text-muted)" }}>
                       {v === "auto" ? "Auto" : v}
                     </button>
                   ))}
@@ -341,14 +339,14 @@ export default function DashboardPage() {
               <OptionGroup label={`Clip Duration: ${clipMinSec}s – ${clipMaxSec}s`}>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: "10px", color: "#9CA3AF", margin: "0 0 4px", fontWeight: 600 }}>MIN</p>
+                    <p style={{ fontSize: "10px", color: "var(--dash-text-muted)", margin: "0 0 4px", fontWeight: 600 }}>MIN</p>
                     <input type="range" min={10} max={30} step={5} value={clipMinSec}
                       onChange={e => setClipMinSec(Number(e.target.value))}
                       style={{ width: "100%", accentColor: "#14B8A6" }}
                     />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: "10px", color: "#9CA3AF", margin: "0 0 4px", fontWeight: 600 }}>MAX</p>
+                    <p style={{ fontSize: "10px", color: "var(--dash-text-muted)", margin: "0 0 4px", fontWeight: 600 }}>MAX</p>
                     <input type="range" min={30} max={90} step={10} value={clipMaxSec}
                       onChange={e => setClipMaxSec(Number(e.target.value))}
                       style={{ width: "100%", accentColor: "#14B8A6" }}
@@ -360,7 +358,7 @@ export default function DashboardPage() {
               {/* Language */}
               <OptionGroup label="Video Language">
                 <select value={language} onChange={e => setLanguage(e.target.value)}
-                  style={{ width: "100%", padding: "8px 10px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "8px", fontSize: "13px", color: "#374151", outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
+                  style={{ width: "100%", padding: "8px 10px", background: "var(--dash-input-bg)", border: "1px solid #E5E7EB", borderRadius: "8px", fontSize: "13px", color: "var(--dash-text-main)", outline: "none", fontFamily: "inherit", cursor: "pointer" }}>
                   <option value="en">🇬🇧 English</option>
                   <option value="es">🇪🇸 Spanish</option>
                   <option value="fr">🇫🇷 French</option>
@@ -382,28 +380,28 @@ export default function DashboardPage() {
 
             {/* Active Template */}
             <div style={{ background: "linear-gradient(135deg,rgba(20,184,166,0.08),rgba(14,165,233,0.05))", border: "1px solid rgba(20,184,166,0.2)", borderRadius: "14px", padding: "16px" }}>
-              <p style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 10px" }}>Active Template</p>
+              <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--dash-text-muted)", textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 10px" }}>Active Template</p>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "rgba(20,184,166,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 }}>
                   {activeTempl.emoji}
                 </div>
                 <div>
                   <p style={{ fontSize: "14px", fontWeight: 700, color: "#0F766E", margin: 0 }}>{activeTempl.name}</p>
-                  <p style={{ fontSize: "11px", color: "#6B7280", margin: "2px 0 0" }}>{activeTempl.desc}</p>
+                  <p style={{ fontSize: "11px", color: "var(--dash-text-muted)", margin: "2px 0 0" }}>{activeTempl.desc}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* ── RIGHT: Input + Template Grid ────────────────────────── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "18px", flex: "2 1 400px", minWidth: 0 }}>
 
             {/* Drop Zone */}
             <div
               onDragEnter={handleDrag} onDragLeave={handleDrag}
               onDragOver={handleDrag} onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              style={{ background: dragActive ? "#F0FDFA" : uploadFile ? "#F0FDFA" : "#FFFFFF", borderRadius: "18px", border: `2px dashed ${dragActive || uploadFile ? "#14B8A6" : "#D1D5DB"}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px", transition: "all 0.2s", cursor: "pointer", textAlign: "center" }}
+              style={{ background: dragActive ? "#F0FDFA" : uploadFile ? "#F0FDFA" : "var(--dash-card-bg)", borderRadius: "18px", border: `2px dashed ${dragActive || uploadFile ? "#14B8A6" : "#D1D5DB"}`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px", transition: "all 0.2s", cursor: "pointer", textAlign: "center" }}
             >
               <input ref={fileInputRef} type="file" accept="video/*" style={{ display: "none" }}
                 onChange={e => { const f = e.target.files?.[0]; if (f) setUploadFile(f); e.target.value = ""; }}
@@ -414,7 +412,7 @@ export default function DashboardPage() {
                     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                   </div>
                   <p style={{ fontSize: "15px", fontWeight: 700, color: "#0F766E", margin: "0 0 4px" }}>{uploadFile.name}</p>
-                  <p style={{ fontSize: "12px", color: "#6B7280", margin: "0 0 12px" }}>{(uploadFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                  <p style={{ fontSize: "12px", color: "var(--dash-text-muted)", margin: "0 0 12px" }}>{(uploadFile.size / 1024 / 1024).toFixed(1)} MB</p>
                   <button onClick={e => { e.stopPropagation(); setUploadFile(null); }} style={{ fontSize: "12px", color: "#EF4444", background: "none", border: "1px solid #FECACA", borderRadius: "6px", padding: "4px 12px", cursor: "pointer" }}>
                     Remove
                   </button>
@@ -427,19 +425,19 @@ export default function DashboardPage() {
                       <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
                     </svg>
                   </div>
-                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#111827", margin: "0 0 6px" }}>Drop your video here</h3>
-                  <p style={{ fontSize: "13px", color: "#6B7280", margin: "0 0 4px" }}>or <span style={{ color: "#14B8A6", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "3px" }}>click to upload</span></p>
-                  <p style={{ fontSize: "12px", color: "#9CA3AF", margin: 0 }}>mp4 · mov · avi · mkv · max 150 min</p>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "var(--dash-text-main)", margin: "0 0 6px" }}>Drop your video here</h3>
+                  <p style={{ fontSize: "13px", color: "var(--dash-text-muted)", margin: "0 0 4px" }}>or <span style={{ color: "#14B8A6", fontWeight: 600, textDecoration: "underline", textUnderlineOffset: "3px" }}>click to upload</span></p>
+                  <p style={{ fontSize: "12px", color: "var(--dash-text-muted)", margin: 0 }}>mp4 · mov · avi · mkv · max 150 min</p>
                 </>
               )}
             </div>
 
             {/* URL input */}
-            <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "14px", padding: "20px" }}>
-              <p style={{ fontSize: "12px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 12px" }}>Or paste a YouTube / Loom / Vimeo link</p>
+            <div style={{ background: "var(--dash-card-bg)", border: "1px solid #E5E7EB", borderRadius: "14px", padding: "20px" }}>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--dash-text-muted)", textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 12px" }}>Or paste a YouTube / Loom / Vimeo link</p>
               <div style={{ display: "flex", gap: "10px" }}>
                 <div style={{ flex: 1, position: "relative" }}>
-                  <div style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }}>
+                  <div style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--dash-text-muted)" }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                   </div>
                   <input
@@ -449,7 +447,7 @@ export default function DashboardPage() {
                     value={youtubeUrl}
                     onChange={e => setYoutubeUrl(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                    style={{ width: "100%", height: "46px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "10px", paddingLeft: "38px", paddingRight: "14px", fontSize: "13px", color: "#374151", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                    style={{ width: "100%", height: "46px", background: "var(--dash-input-bg)", border: "1px solid #E5E7EB", borderRadius: "10px", paddingLeft: "38px", paddingRight: "14px", fontSize: "13px", color: "var(--dash-text-main)", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
                   />
                 </div>
               </div>
@@ -473,28 +471,53 @@ export default function DashboardPage() {
               id="generate-btn"
               onClick={handleSubmit}
               disabled={isSubmitting || (!youtubeUrl.trim() && !uploadFile)}
-              style={{ width: "100%", padding: "16px", borderRadius: "13px", border: "none", fontSize: "15px", fontWeight: 700, cursor: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "not-allowed" : "pointer", background: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "#E5E7EB" : "linear-gradient(135deg,#14B8A6,#0EA5E9)", color: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "#9CA3AF" : "white", boxShadow: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "none" : "0 6px 20px rgba(20,184,166,0.35)", transition: "all 0.2s", letterSpacing: "-0.2px" }}>
+              style={{ width: "100%", padding: "16px", borderRadius: "13px", border: "none", fontSize: "15px", fontWeight: 700, cursor: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "not-allowed" : "pointer", background: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "var(--dash-border)" : "linear-gradient(135deg,#14B8A6,#0EA5E9)", color: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "var(--dash-text-muted)" : "white", boxShadow: isSubmitting || (!youtubeUrl.trim() && !uploadFile) ? "none" : "0 6px 20px rgba(20,184,166,0.35)", transition: "all 0.2s", letterSpacing: "-0.2px" }}>
               {isSubmitting ? "Queuing job…" : `⚡ Generate Shorts with ${activeTempl.emoji} ${activeTempl.name}`}
             </button>
 
             {/* Template selector */}
-            <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "16px", padding: "20px" }}>
+            <div style={{ background: "var(--dash-card-bg)", border: "1px solid var(--dash-border)", borderRadius: "16px", padding: "20px", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <p style={{ fontSize: "13px", fontWeight: 700, color: "#111827", margin: 0 }}>Viral Style Template</p>
-                  <span style={{ fontSize: "11px", color: "#7C3AED", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: "6px", padding: "2px 8px", fontWeight: 600 }}>20 Templates</span>
+                  <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--dash-text-main)", margin: 0 }}>Viral Style Template</p>
+                  <span style={{ fontSize: "11px", color: "#7C3AED", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: "6px", padding: "2px 8px", fontWeight: 600 }}>18 Templates</span>
                 </div>
-                <span style={{ fontSize: "11px", color: "#9CA3AF" }}>← scroll →</span>
               </div>
-              <div style={{ display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "6px", scrollbarWidth: "thin", scrollbarColor: "#E5E7EB transparent" }}>
+              
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: "10px", overflowY: "auto", maxHeight: "480px", paddingRight: "4px", paddingBottom: "4px", scrollbarWidth: "thin", scrollbarColor: "var(--dash-border) transparent" }} className="dashboard-content-scroll">
                 {TEMPLATES.map(t => {
                   const sel = t.id === selectedTemplate;
                   return (
                     <button key={t.id} onClick={() => setSelectedTemplate(t.id)}
                       title={t.desc}
-                      style={{ flexShrink: 0, width: "84px", background: sel ? "linear-gradient(135deg,rgba(20,184,166,0.12),rgba(14,165,233,0.08))" : "#F9FAFB", border: `2px solid ${sel ? "#14B8A6" : "transparent"}`, borderRadius: "12px", padding: "12px 8px 8px", cursor: "pointer", transition: "all 0.15s", boxShadow: sel ? "0 0 0 3px rgba(20,184,166,0.15)" : "none", textAlign: "center" }}>
-                      <div style={{ fontSize: "26px", lineHeight: 1, marginBottom: "6px" }}>{t.emoji}</div>
-                      <p style={{ fontSize: "10px", fontWeight: sel ? 700 : 500, color: sel ? "#0F766E" : "#374151", margin: 0, lineHeight: 1.3 }}>{t.name}</p>
+                      style={{ 
+                        position: "relative",
+                        background: sel ? "linear-gradient(135deg,rgba(20,184,166,0.12),rgba(14,165,233,0.08))" : "var(--dash-input-bg)", 
+                        border: `2px solid ${sel ? "#14B8A6" : "transparent"}`, 
+                        borderRadius: "12px", 
+                        padding: "8px", 
+                        cursor: "pointer", 
+                        transition: "all 0.15s", 
+                        boxShadow: sel ? "0 0 0 3px rgba(20,184,166,0.15)" : "none", 
+                        textAlign: "center",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center"
+                      }}>
+                      
+                      {/* Image Thumbnail */}
+                      <div style={{ width: "100%", aspectRatio: "9/16", borderRadius: "6px", overflow: "hidden", marginBottom: "8px", background: "#1E293B", position: "relative" }}>
+                        <img 
+                          src={t.image} 
+                          alt={t.name}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                        <div style={{ position: "absolute", bottom: "4px", right: "4px", background: "rgba(0,0,0,0.6)", borderRadius: "4px", padding: "2px 5px", fontSize: "12px" }}>
+                          {t.emoji}
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: "11px", fontWeight: sel ? 700 : 500, color: sel ? "#0F766E" : "var(--dash-text-main)", margin: 0, lineHeight: 1.3 }}>{t.name}</p>
                     </button>
                   );
                 })}
@@ -510,21 +533,21 @@ export default function DashboardPage() {
       {activeTab === "jobs" && (
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "#111827", margin: 0 }}>Processing Jobs</h2>
+            <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--dash-text-main)", margin: 0 }}>Processing Jobs</h2>
             <button onClick={loadJobs} style={{ fontSize: "12px", color: "#14B8A6", fontWeight: 600, background: "#F0FDFA", border: "1px solid #99F6E4", borderRadius: "8px", padding: "6px 14px", cursor: "pointer" }}>
               ↻ Refresh
             </button>
           </div>
 
           {loadingJobs && jobs.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px", color: "#9CA3AF" }}>
+            <div style={{ textAlign: "center", padding: "60px", color: "var(--dash-text-muted)" }}>
               <p style={{ fontSize: "14px" }}>Loading jobs…</p>
             </div>
           ) : jobs.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 40px", background: "#fff", border: "1px solid #E5E7EB", borderRadius: "16px" }}>
+            <div style={{ textAlign: "center", padding: "80px 40px", background: "var(--dash-card-bg)", border: "1px solid #E5E7EB", borderRadius: "16px" }}>
               <div style={{ fontSize: "40px", marginBottom: "16px" }}>📭</div>
-              <p style={{ fontSize: "16px", fontWeight: 600, color: "#374151", margin: "0 0 8px" }}>No jobs yet</p>
-              <p style={{ fontSize: "13px", color: "#9CA3AF", margin: "0 0 20px" }}>Create your first short from the Create tab</p>
+              <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--dash-text-main)", margin: "0 0 8px" }}>No jobs yet</p>
+              <p style={{ fontSize: "13px", color: "var(--dash-text-muted)", margin: "0 0 20px" }}>Create your first short from the Create tab</p>
               <button onClick={() => setActiveTab("create")} style={{ background: "#14B8A6", color: "white", border: "none", borderRadius: "10px", padding: "10px 24px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
                 Create Now
               </button>
@@ -532,11 +555,11 @@ export default function DashboardPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {jobs.map(job => {
-                const col = STATUS_COLOR[job.status] ?? "#9CA3AF";
-                const bg  = STATUS_BG[job.status]  ?? "#F9FAFB";
+                const col = STATUS_COLOR[job.status] ?? "var(--dash-text-muted)";
+                const bg  = STATUS_BG[job.status]  ?? "var(--dash-input-bg)";
                 const isExpanded = expandedJob === job.job_id;
                 return (
-                  <div key={job.job_id} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "14px", overflow: "hidden", transition: "box-shadow 0.15s" }}>
+                  <div key={job.job_id} style={{ background: "var(--dash-card-bg)", border: "1px solid #E5E7EB", borderRadius: "14px", overflow: "hidden", transition: "box-shadow 0.15s" }}>
                     <div
                       onClick={() => setExpandedJob(isExpanded ? null : job.job_id)}
                       style={{ padding: "16px 20px", cursor: "pointer", display: "flex", alignItems: "center", gap: "16px" }}
@@ -546,30 +569,30 @@ export default function DashboardPage() {
 
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px", flexWrap: "wrap" }}>
-                          <p style={{ fontSize: "13px", fontWeight: 600, color: "#111827", margin: 0, fontFamily: "monospace" }}>
+                          <p style={{ fontSize: "13px", fontWeight: 600, color: "var(--dash-text-main)", margin: 0, fontFamily: "monospace" }}>
                             {job.job_id.slice(0, 8)}…
                           </p>
                           <span style={{ fontSize: "11px", fontWeight: 600, color: col, background: bg, border: `1px solid ${col}44`, borderRadius: "6px", padding: "2px 8px", textTransform: "capitalize" }}>
                             {job.status}
                           </span>
                           {job.clip_count > 0 && (
-                            <span style={{ fontSize: "11px", color: "#6B7280" }}>{job.clip_count} clips</span>
+                            <span style={{ fontSize: "11px", color: "var(--dash-text-muted)" }}>{job.clip_count} clips</span>
                           )}
                         </div>
-                        <p style={{ fontSize: "12px", color: "#9CA3AF", margin: 0 }}>{job.current_step}</p>
+                        <p style={{ fontSize: "12px", color: "var(--dash-text-muted)", margin: 0 }}>{job.current_step}</p>
                       </div>
 
                       {/* Progress bar */}
                       {job.status === "processing" && (
                         <div style={{ width: "120px", flexShrink: 0 }}>
-                          <div style={{ height: "5px", background: "#F3F4F6", borderRadius: "3px", overflow: "hidden" }}>
+                          <div style={{ height: "5px", background: "var(--dash-hover)", borderRadius: "3px", overflow: "hidden" }}>
                             <div style={{ height: "100%", width: `${job.progress}%`, background: "#14B8A6", borderRadius: "3px", transition: "width 0.5s" }} />
                           </div>
-                          <p style={{ fontSize: "10px", color: "#9CA3AF", margin: "3px 0 0", textAlign: "right" }}>{job.progress}%</p>
+                          <p style={{ fontSize: "10px", color: "var(--dash-text-muted)", margin: "3px 0 0", textAlign: "right" }}>{job.progress}%</p>
                         </div>
                       )}
 
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--dash-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>
                         <polyline points="6 9 12 15 18 9"/>
                       </svg>
                     </div>
@@ -577,12 +600,12 @@ export default function DashboardPage() {
                     {/* Expanded: clip results */}
                     {isExpanded && job.clips && job.clips.length > 0 && (
                       <div style={{ padding: "0 20px 20px", borderTop: "1px solid #F3F4F6" }}>
-                        <p style={{ fontSize: "12px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", margin: "14px 0 12px" }}>
+                        <p style={{ fontSize: "12px", fontWeight: 700, color: "var(--dash-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", margin: "14px 0 12px" }}>
                           Generated Clips
                         </p>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "12px" }}>
                           {job.clips.map(clip => (
-                            <div key={clip.clip_id} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "12px", overflow: "hidden" }}>
+                            <div key={clip.clip_id} style={{ background: "var(--dash-input-bg)", border: "1px solid #E5E7EB", borderRadius: "12px", overflow: "hidden" }}>
                               <div style={{ position: "relative", paddingTop: "177%", background: "#1E293B" }}>
                                 {clip.thumbnail_url && (
                                   <img src={clip.thumbnail_url} alt={clip.top_title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
@@ -597,14 +620,14 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                               <div style={{ padding: "10px" }}>
-                                <p style={{ fontSize: "10px", color: "#6B7280", margin: "0 0 6px" }}>{clip.bottom_tag}</p>
+                                <p style={{ fontSize: "10px", color: "var(--dash-text-muted)", margin: "0 0 6px" }}>{clip.bottom_tag}</p>
                                 <div style={{ display: "flex", gap: "6px" }}>
                                   <a href={clip.clip_url} target="_blank" rel="noopener noreferrer"
                                     style={{ flex: 1, background: "#14B8A6", color: "white", border: "none", borderRadius: "7px", padding: "6px 0", fontSize: "11px", fontWeight: 600, cursor: "pointer", textAlign: "center", textDecoration: "none", display: "block" }}>
                                     ▶ View
                                   </a>
                                   <a href={clip.clip_url} download
-                                    style={{ background: "#F3F4F6", color: "#374151", border: "none", borderRadius: "7px", padding: "6px 10px", fontSize: "11px", fontWeight: 600, cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center" }}>
+                                    style={{ background: "var(--dash-hover)", color: "var(--dash-text-main)", border: "none", borderRadius: "7px", padding: "6px 10px", fontSize: "11px", fontWeight: 600, cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center" }}>
                                     ↓
                                   </a>
                                 </div>
@@ -657,24 +680,24 @@ function ClipsGallery() {
     })();
   }, []);
 
-  if (loading) return <div style={{ textAlign: "center", padding: "60px", color: "#9CA3AF" }}><p>Loading clips…</p></div>;
+  if (loading) return <div style={{ textAlign: "center", padding: "60px", color: "var(--dash-text-muted)" }}><p>Loading clips…</p></div>;
 
   if (clips.length === 0) return (
-    <div style={{ textAlign: "center", padding: "80px 40px", background: "#fff", border: "1px solid #E5E7EB", borderRadius: "16px" }}>
+    <div style={{ textAlign: "center", padding: "80px 40px", background: "var(--dash-card-bg)", border: "1px solid #E5E7EB", borderRadius: "16px" }}>
       <div style={{ fontSize: "40px", marginBottom: "16px" }}>🎬</div>
-      <p style={{ fontSize: "16px", fontWeight: 600, color: "#374151", margin: "0 0 8px" }}>No clips yet</p>
-      <p style={{ fontSize: "13px", color: "#9CA3AF" }}>Your generated shorts will appear here once complete</p>
+      <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--dash-text-main)", margin: "0 0 8px" }}>No clips yet</p>
+      <p style={{ fontSize: "13px", color: "var(--dash-text-muted)" }}>Your generated shorts will appear here once complete</p>
     </div>
   );
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-        <h2 style={{ fontSize: "17px", fontWeight: 700, color: "#111827", margin: 0 }}>My Clips <span style={{ color: "#9CA3AF", fontWeight: 400, fontSize: "14px" }}>({clips.length})</span></h2>
+        <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--dash-text-main)", margin: 0 }}>My Clips <span style={{ color: "var(--dash-text-muted)", fontWeight: 400, fontSize: "14px" }}>({clips.length})</span></h2>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "14px" }}>
         {clips.map(clip => (
-          <div key={clip.clip_id} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "14px", overflow: "hidden" }}>
+          <div key={clip.clip_id} style={{ background: "var(--dash-card-bg)", border: "1px solid #E5E7EB", borderRadius: "14px", overflow: "hidden" }}>
             <div style={{ position: "relative", paddingTop: "177%", background: "#1E293B" }}>
               {clip.thumbnail_url && (
                 <img src={clip.thumbnail_url} alt={clip.top_title} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
@@ -689,17 +712,17 @@ function ClipsGallery() {
               )}
             </div>
             <div style={{ padding: "10px 12px 12px" }}>
-              <p style={{ fontSize: "11px", fontWeight: 700, color: "#111827", margin: "0 0 3px", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+              <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--dash-text-main)", margin: "0 0 3px", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                 {clip.top_title}
               </p>
-              <p style={{ fontSize: "10px", color: "#9CA3AF", margin: "0 0 10px" }}>{clip.bottom_tag}</p>
+              <p style={{ fontSize: "10px", color: "var(--dash-text-muted)", margin: "0 0 10px" }}>{clip.bottom_tag}</p>
               <div style={{ display: "flex", gap: "6px" }}>
                 <a href={clip.clip_url} target="_blank" rel="noopener noreferrer"
                   style={{ flex: 1, background: "#14B8A6", color: "white", borderRadius: "8px", padding: "7px 0", fontSize: "11px", fontWeight: 600, textAlign: "center", textDecoration: "none", display: "block" }}>
                   ▶ Play
                 </a>
                 <a href={clip.clip_url} download
-                  style={{ background: "#F3F4F6", color: "#374151", borderRadius: "8px", padding: "7px 10px", fontSize: "11px", fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center" }}>
+                  style={{ background: "var(--dash-hover)", color: "var(--dash-text-main)", borderRadius: "8px", padding: "7px 10px", fontSize: "11px", fontWeight: 600, textDecoration: "none", display: "flex", alignItems: "center" }}>
                   ↓
                 </a>
               </div>
@@ -714,8 +737,8 @@ function ClipsGallery() {
 // ─── Shared UI components ────────────────────────────────────────────────────
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: "14px", padding: "20px" }}>
-      <p style={{ fontSize: "11px", fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.7px", margin: "0 0 16px" }}>{title}</p>
+    <div style={{ background: "var(--dash-card-bg)", border: "1px solid #E5E7EB", borderRadius: "14px", padding: "20px" }}>
+      <p style={{ fontSize: "11px", fontWeight: 700, color: "var(--dash-text-muted)", textTransform: "uppercase", letterSpacing: "0.7px", margin: "0 0 16px" }}>{title}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>{children}</div>
     </div>
   );
@@ -724,7 +747,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 function OptionGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p style={{ fontSize: "12px", fontWeight: 600, color: "#374151", margin: "0 0 8px" }}>{label}</p>
+      <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--dash-text-main)", margin: "0 0 8px" }}>{label}</p>
       {children}
     </div>
   );
@@ -734,8 +757,8 @@ function Toggle({ label, hint, value, onChange }: { label: string; hint?: string
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }} onClick={() => onChange(!value)}>
       <div>
-        <p style={{ fontSize: "13px", fontWeight: 500, color: "#374151", margin: 0 }}>{label}</p>
-        {hint && <p style={{ fontSize: "11px", color: "#9CA3AF", margin: "2px 0 0" }}>{hint}</p>}
+        <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--dash-text-main)", margin: 0 }}>{label}</p>
+        {hint && <p style={{ fontSize: "11px", color: "var(--dash-text-muted)", margin: "2px 0 0" }}>{hint}</p>}
       </div>
       <div style={{ width: "42px", height: "24px", borderRadius: "12px", position: "relative", background: value ? "#14B8A6" : "#D1D5DB", transition: "background 0.2s", flexShrink: 0 }}>
         <div style={{ width: "18px", height: "18px", background: "white", borderRadius: "50%", position: "absolute", top: "3px", left: value ? "21px" : "3px", transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }} />
