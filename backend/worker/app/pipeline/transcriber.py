@@ -9,15 +9,15 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
-# Use Groq's ultra-fast, cheap Whisper API instead of OpenAI
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-if GROQ_API_KEY:
-    client = AsyncOpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
-    MODEL_NAME = "whisper-large-v3"
-else:
-    # Fallback to OpenAI if Groq isn't configured
-    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    MODEL_NAME = "whisper-1"
+# DEFAULT: Use official OpenAI Whisper API
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+MODEL_NAME = "whisper-1"
+
+# FUTURE UPGRADE: Use Groq's ultra-fast Whisper API to save costs
+# GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# if GROQ_API_KEY:
+#     client = AsyncOpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+#     MODEL_NAME = "whisper-large-v3"
 
 # Whisper API has a 25MB file size limit.
 # For large audio files, we need to chunk them.
