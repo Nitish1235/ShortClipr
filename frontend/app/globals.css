@@ -1105,6 +1105,7 @@ body {
 /* ==================== DASHBOARD MOBILE RESPONSE ==================== */
 @media (min-width: 769px) {
   .md-hidden { display: none !important; }
+  .md-sidebar-fixed { left: 0 !important; }
   .md-main-offset { margin-left: 240px !important; }
 }
 @media (max-width: 768px) {

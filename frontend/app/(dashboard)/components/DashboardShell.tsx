@@ -51,10 +51,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         {/* Logo */}
         <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid var(--dash-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
-            <div style={{ width: "32px", height: "32px", background: "#14B8A6", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-              </svg>
+            <div style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <img src="/favicon.svg" alt="ShortClipr Ghost Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
             <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--dash-text-main)", letterSpacing: "-0.3px" }}>ShortClipr</span>
           </Link>

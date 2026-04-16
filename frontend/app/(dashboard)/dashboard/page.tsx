@@ -37,6 +37,7 @@ type UserStats = {
 
 // ─── Template catalog ─────────────────────────────────────────────────────────
 const TEMPLATES = [
+  { id: "none",                name: "Standard AI",         emoji: "🤖", desc: "Basic editing algorithm" },
   { id: "viral-hook",          name: "Viral Hook",          emoji: "🔥", desc: "Big hook + zoom-in", image: "/templates/viral-hook.jpg" },
   { id: "satisfying-reveal",   name: "Satisfying Reveal",   emoji: "🏆", desc: "Cinema reveal", image: "/templates/satisfying-reveal.jpg" },
   { id: "luxury-shock",        name: "Luxury Shock",        emoji: "✨", desc: "Glow + luxury", image: "/templates/luxury-shock.jpg" },
@@ -114,7 +115,7 @@ export default function DashboardPage() {
 
   // ── Generator options ─────────────────────────────────────────────────────
   const [shortsCount,      setShortsCount]       = useState<ShortsCount>("auto");
-  const [selectedTemplate, setSelectedTemplate]  = useState("viral-hook");
+  const [selectedTemplate, setSelectedTemplate]  = useState("none");
   const [autoCaptions,     setAutoCaptions]      = useState(true);
   const [verticalFormat,   setVerticalFormat]    = useState(true);
   const [viralFilter,      setViralFilter]       = useState(false);
@@ -210,7 +211,7 @@ export default function DashboardPage() {
       const payload = {
         youtube_url:  youtubeUrl.trim() || null,
         video_url:    videoUrl,
-        template_id:  selectedTemplate,
+        template_id:  selectedTemplate === "none" ? null : selectedTemplate,
         options: {
           shorts_count:   shortsCount,
           auto_captions:  autoCaptions,
@@ -480,7 +481,7 @@ export default function DashboardPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--dash-text-main)", margin: 0 }}>Viral Style Template</p>
-                  <span style={{ fontSize: "11px", color: "#7C3AED", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: "6px", padding: "2px 8px", fontWeight: 600 }}>18 Templates</span>
+                  <span style={{ fontSize: "11px", color: "#7C3AED", background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: "6px", padding: "2px 8px", fontWeight: 600 }}>{TEMPLATES.length} Templates</span>
                 </div>
               </div>
               
@@ -507,11 +508,17 @@ export default function DashboardPage() {
                       
                       {/* Image Thumbnail */}
                       <div style={{ width: "100%", aspectRatio: "9/16", borderRadius: "6px", overflow: "hidden", marginBottom: "8px", background: "#1E293B", position: "relative" }}>
-                        <img 
-                          src={t.image} 
-                          alt={t.name}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        />
+                        {t.image ? (
+                          <img 
+                            src={t.image} 
+                            alt={t.name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #374151, #111827)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ fontSize: "32px", opacity: 0.8 }}>⚡</span>
+                          </div>
+                        )}
                         <div style={{ position: "absolute", bottom: "4px", right: "4px", background: "rgba(0,0,0,0.6)", borderRadius: "4px", padding: "2px 5px", fontSize: "12px" }}>
                           {t.emoji}
                         </div>
