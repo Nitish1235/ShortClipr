@@ -8,7 +8,16 @@ import os
 from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
-client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Use Groq's ultra-fast, cheap Whisper API instead of OpenAI
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+if GROQ_API_KEY:
+    client = AsyncOpenAI(api_key=GROQ_API_KEY, base_url="https://api.groq.com/openai/v1")
+    MODEL_NAME = "whisper-large-v3"
+else:
+    # Fallback to OpenAI if Groq isn't configured
+    client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    MODEL_NAME = "whisper-1"
 
 # Whisper API has a 25MB file size limit.
 # For large audio files, we need to chunk them.
@@ -40,7 +49,7 @@ async def _transcribe_single(audio_path: str) -> dict:
     """Transcribe a single audio file under the 25MB Whisper limit."""
     with open(audio_path, "rb") as f:
         response = await client.audio.transcriptions.create(
-            model="whisper-1",
+            model=MODEL_NAME,
             file=f,
             response_format="verbose_json",
             timestamp_granularities=["word"],

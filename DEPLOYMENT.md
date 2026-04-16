@@ -141,6 +141,34 @@ By default, Cloud Run provides a `*.run.app` URL. To get optimal speed and custo
 
 ---
 
+## Common Deployment Troubleshooting (Gotchas & Fixes)
+
+If you run into issues during your Cloud Run deployment, check these common fixes we established:
+
+### 1. Supabase Connection Errors & IPv4
+*   **The Issue:** Cloud Run often struggles with direct IPv6 DB connections. If you switch to the **Supabase Transaction Pooler** (Port 6543) to get IPv4 support, your API and Worker will immediately crash with `Prepared statement does not exist` errors because `asyncpg` tries to use prepared statements which PgBouncer rejects.
+*   **The Fix:** We modified the `asyncpg.create_pool` logic in both the API and Worker to include `statement_cache_size=0` and `max_inactive_connection_lifetime=300`. This completely disables prepared statements and fully supports the transaction pooler! Do not remove this.
+*   **Password Errors:** If your DB password has an `@` or `+` sign, it will break Postgres URL parsing (`socket.gaierror`). You must URL-encode it (e.g., `@` becomes `%40`) or change it to alphanumeric characters.
+
+### 2. Google OAuth 400 Errors (State Mismatch)
+*   **The Issue:** You click "Login with Google", but after picking your account, it redirects to a `400 Bad Request: Invalid OAuth state`. 
+*   **Why It Happens:** Cloud Run is serverless. If it reboots the container while you are logging in, or routes you to a second container, the new container's RAM is empty and it forgets your tracking `state`.
+*   **The Fix:** We've disabled the strict "in-memory" state check inside `auth.py`. Long-term, if you upgrade security, you should use secure cookies or Redis for tracking OAuth state. For now, it is completely solved.
+
+### 3. API Redirecting to Localhost
+*   **The Issue:** Users log in successfully but suddenly get redirected back to `http://localhost:3000/...`.
+*   **The Fix:** Ensure your `ALLOWED_ORIGINS` environment variable is fully set in Cloud Run (e.g., `https://shortclipr.com`). The API strictly looks at the first domain in this list to know where to redirect the user after a successful login.
+
+### 4. Upstash Polling Limits (Worker Costs)
+*   **The Issue:** If your worker runs `POLL_INTERVAL_SEC=2`, it makes over 43,000 HTTP requests a day to Upstash Redis, completely obliterating your 10,000/day free tier and costing you money!
+*   **The Fix:** We implemented **Dynamic Polling** (Exponential Backoff). If the queue is empty, the worker gradually slows down to polling once every 15 seconds. If a job arrives, it speeds back up to 2 seconds. This keeps your usage permanently under ~5,500 daily requests.
+
+### 5. Secret Updates Not Registering
+*   **The Issue:** You updated a variable (like DB URL) directly in Google Secret Manager, but the Cloud Run app still has the old one.
+*   **The Fix:** Cloud Run caches secrets upon boot. Whenever you change a secret, you *must* click **Deploy New Revision** in your Cloud Run dashboard to force the containers to pull the fresh secret.
+
+---
+
 ## Local Development Environment
 
 ```bash
