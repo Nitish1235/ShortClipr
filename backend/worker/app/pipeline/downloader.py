@@ -61,6 +61,12 @@ def _download_youtube_sync(youtube_url: str, output_path: str) -> str:
         "no_warnings": True,
         "socket_timeout": 30,
         "merge_output_format": "mp4",
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"],
+                "client": ["android", "ios"]
+            }
+        }
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([youtube_url])
