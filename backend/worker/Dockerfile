@@ -5,6 +5,8 @@ WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libcurl4-openssl-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -28,7 +30,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     GLOG_minloglevel=2 \
     TF_CPP_MIN_LOG_LEVEL=3
 
-# ── System deps: FFmpeg, OpenCV, MediaPipe, fonts ────────────────────────────
+# ── System deps: FFmpeg, OpenCV, MediaPipe, fonts, yt-dlp runtime ────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # FFmpeg (video processing core)
     ffmpeg \
@@ -44,6 +46,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fontconfig \
     # yt-dlp needs these for merging streams
     python3-pip \
+    # Node.js — required by yt-dlp to solve YouTube's n-challenge (JS encryption)
+    # Without this, yt-dlp cannot decrypt stream URLs and downloads fail silently
+    nodejs \
+    npm \
+    # curl_cffi runtime deps — required for yt-dlp --impersonate chrome TLS spoofing
+    libcurl4 \
+    libssl3 \
+    ca-certificates \
     && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
