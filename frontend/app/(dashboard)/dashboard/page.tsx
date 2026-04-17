@@ -644,10 +644,10 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     )}
-                    {isExpanded && job.status === "processing" && (
+                    {isExpanded && (job.status === "processing" || job.status === "queued" || job.status === "pending") && (
                       <div style={{ padding: "12px 20px 18px", borderTop: "1px solid #F3F4F6", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
-                        <p style={{ fontSize: "13px", color: "#14B8A6", fontWeight: 600, margin: 0 }}>
-                          ⚡ Processing... auto-refreshes every 6s
+                        <p style={{ fontSize: "13px", color: job.status === "queued" ? "#6366F1" : "#14B8A6", fontWeight: 600, margin: 0 }}>
+                          {job.status === "queued" ? "⏳ In Queue..." : "⚡ Processing..."} auto-refreshes every 6s
                         </p>
                         <button
                           onClick={async (e) => {

@@ -346,6 +346,7 @@ def _render_sync(
                 movflags="+faststart",
             )
             .overwrite_output()
+            .global_args('-nostdin')
             .run(quiet=True)
         )
     except ffmpeg.Error as exc:
@@ -374,6 +375,7 @@ def _fallback_render(
             video_bitrate="4500k", preset="fast", movflags="+faststart",
         )
         .overwrite_output()
+        .global_args('-nostdin')
         .run(quiet=True)
     )
 

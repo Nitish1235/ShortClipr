@@ -31,6 +31,7 @@ def _extract_sync(
             movflags="+faststart",
         )
         .overwrite_output()
+        .global_args('-nostdin')
         .run(quiet=True)
     )
     return output_path

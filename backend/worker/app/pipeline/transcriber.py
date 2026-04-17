@@ -91,6 +91,7 @@ async def _transcribe_chunked(audio_path: str) -> dict:
                 ac=1,
             )
             .overwrite_output()
+            .global_args('-nostdin')
             .run(quiet=True)
         )
 

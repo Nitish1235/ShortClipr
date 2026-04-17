@@ -59,6 +59,7 @@ def _download_youtube_sync(youtube_url: str, output_path: str) -> str:
         "outtmpl": output_path,
         "quiet": True,
         "no_warnings": True,
+        "socket_timeout": 30,
         "merge_output_format": "mp4",
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

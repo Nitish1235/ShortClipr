@@ -191,6 +191,7 @@ def _reframe_sync(video_path: str, output_path: str) -> str:
                 shortest=None,
             )
             .overwrite_output()
+            .global_args('-nostdin')
             .run(quiet=True)
         )
         return output_path
@@ -200,6 +201,7 @@ def _reframe_sync(video_path: str, output_path: str) -> str:
         .input(video_path)
         .output(output_path, **output_kwargs)
         .overwrite_output()
+        .global_args('-nostdin')
         .run(quiet=True)
     )
     return output_path

@@ -156,6 +156,7 @@ def _burn_sync(video_path: str, ass_path: str, output_path: str) -> str:
                 movflags="+faststart",
             )
             .overwrite_output()
+            .global_args('-nostdin')
             .run(quiet=True)
         )
     except ffmpeg.Error as exc:
@@ -168,6 +169,7 @@ def _burn_sync(video_path: str, ass_path: str, output_path: str) -> str:
             .input(video_path)
             .output(output_path, vcodec="copy", acodec="copy", movflags="+faststart")
             .overwrite_output()
+            .global_args('-nostdin')
             .run(quiet=True)
         )
 

@@ -33,6 +33,7 @@ def _extract_sync(video_path: str, audio_path: str) -> str:
             .input("anullsrc=r=16000:cl=mono", f="lavfi", t=1)
             .output(audio_path, acodec="pcm_s16le", ar=16000, ac=1)
             .overwrite_output()
+            .global_args('-nostdin')
             .run(quiet=True)
         )
         return audio_path
@@ -48,6 +49,7 @@ def _extract_sync(video_path: str, audio_path: str) -> str:
             vn=None,              # drop video stream
         )
         .overwrite_output()
+        .global_args('-nostdin')
         .run(quiet=True)
     )
     return audio_path
