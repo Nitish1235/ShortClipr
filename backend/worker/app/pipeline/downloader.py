@@ -57,16 +57,25 @@ def _download_youtube_sync(youtube_url: str, output_path: str) -> str:
     ydl_opts = {
         "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "outtmpl": output_path,
-        "quiet": True,
-        "no_warnings": True,
-        "socket_timeout": 30,
+        "quiet": False,     # Show warnings so we can see errors in Cloud Run logs
+        "no_warnings": False,
+        "socket_timeout": 60,
         "merge_output_format": "mp4",
+        # Use tv_embedded client — works on datacenter IPs without sign-in (2025)
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "web"],
-                "client": ["android", "ios"]
+                "player_client": ["tv_embedded", "android_vr"],
+                "player_skip": ["webpage", "configs"],
             }
-        }
+        },
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+            ),
+        },
+        # Retry logic
+        "retries": 5,
+        "fragment_retries": 5,
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([youtube_url])
