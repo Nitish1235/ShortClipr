@@ -87,13 +87,22 @@ def _row_to_user(row: asyncpg.Record) -> UserDB:
 
 
 def _row_to_job(row: asyncpg.Record, clips: List[ClipResult] | None = None) -> JobDB:
+    options_val = row["options"]
+    if isinstance(options_val, str):
+        try:
+            options_val = json.loads(options_val)
+        except Exception:
+            options_val = {}
+    if not options_val:
+        options_val = {}
+
     return JobDB(
         job_id=row["job_id"],
         user_id=row["user_id"],
         video_url=row["video_url"],
         youtube_url=row["youtube_url"],
         template_id=row.get("template_id", "viral-hook"),
-        options=row["options"] or {},
+        options=options_val,
         status=JobStatus(row["status"]),
         progress=row["progress"],
         current_step=row["current_step"] or "",
