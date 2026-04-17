@@ -1,22 +1,19 @@
 """
 downloader.py — Download source video from YouTube (yt-dlp) or Google Cloud Storage.
 
-Supported video_url formats:
-  gs://bucket-name/path/to/file.mp4          — GCS native URI
-  https://storage.googleapis.com/bucket/...   — GCS public/signed HTTPS URL
-  https://storage.cloud.google.com/bucket/... — alternate GCS HTTPS URL
+Download Strategy (in order of attempt):
+  1. PRIMARY: Heavy browser impersonation via yt-dlp's --impersonate chrome flag.
+     Tries multiple official YouTube player clients (web, ios, android, tv, safari).
+     Works for most public videos without requiring user cookies.
 
-YouTube is always preferred over GCS URL when both are provided.
+  2. FALLBACK: Cookie-based authentication via YOUTUBE_COOKIES env var.
+     Required for age-restricted or bot-detection-heavy environments.
+     Set YOUTUBE_COOKIES to a base64-encoded Netscape cookies.txt from Firefox.
 
-YouTube Authentication:
-  Set the YOUTUBE_COOKIES env var to the base64-encoded contents of a
-  Netscape-format cookies.txt file exported from a logged-in browser.
-  This is required for Cloud Run datacenter IPs to bypass bot detection.
-
-  To generate the env var value:
-    1. Export cookies.txt from YouTube (use "Get cookies.txt LOCALLY" extension)
-    2. Run: base64 -w 0 cookies.txt
-    3. Paste the output as the YOUTUBE_COOKIES env var in Cloud Run
+Supported GCS video_url formats:
+  gs://bucket-name/path/to/file.mp4
+  https://storage.googleapis.com/bucket/path/to/file.mp4
+  https://storage.cloud.google.com/bucket/path/to/file.mp4
 """
 import asyncio
 import base64
@@ -31,6 +28,13 @@ logger = logging.getLogger(__name__)
 
 GCP_PROJECT_ID  = os.getenv("GCP_PROJECT_ID")
 _storage_client = None
+
+# Realistic Chrome 130 User-Agent — matches what yt-dlp impersonation expects
+_CHROME_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/130.0.0.0 Safari/537.36"
+)
 
 
 def _get_storage_client() -> storage.Client:
@@ -47,16 +51,12 @@ _GCS_HTTPS_RE = re.compile(
 )
 
 def _to_gcs_uri(url: str) -> str:
-    """
-    Convert any GCS URL format to a canonical gs://bucket/path URI.
-    Passes through gs:// URIs unchanged.
-    """
+    """Convert any GCS URL format to a canonical gs://bucket/path URI."""
     if url.startswith("gs://"):
         return url
     m = _GCS_HTTPS_RE.match(url)
     if m:
-        bucket, blob = m.group(1), m.group(2)
-        return f"gs://{bucket}/{blob}"
+        return f"gs://{m.group(1)}/{m.group(2)}"
     logger.warning(f"Unrecognised GCS URL format: {url}")
     return url
 
@@ -65,16 +65,11 @@ def _to_gcs_uri(url: str) -> str:
 
 def _write_cookie_file() -> str | None:
     """
-    Read YOUTUBE_COOKIES env var (base64-encoded Netscape cookies.txt),
-    decode it, write to a temp file, and return the path.
-    Returns None if the env var is not set.
+    Read YOUTUBE_COOKIES env var (base64-encoded Netscape cookies.txt from Firefox),
+    decode and write to a temp file. Returns path or None if not set.
     """
     raw = os.getenv("YOUTUBE_COOKIES", "").strip()
     if not raw:
-        logger.warning(
-            "YOUTUBE_COOKIES env var not set — attempting unauthenticated download. "
-            "This will likely fail on Cloud Run datacenter IPs."
-        )
         return None
     try:
         decoded = base64.b64decode(raw).decode("utf-8")
@@ -84,55 +79,144 @@ def _write_cookie_file() -> str | None:
         tmp.write(decoded)
         tmp.flush()
         tmp.close()
-        logger.info(f"YouTube cookies written to temp file: {tmp.name}")
+        logger.info(f"YouTube cookies written to: {tmp.name}")
         return tmp.name
     except Exception as e:
         logger.error(f"Failed to decode YOUTUBE_COOKIES: {e}")
         return None
 
 
-# ── Download backends ─────────────────────────────────────────────────────────
+# ── yt-dlp option builders ────────────────────────────────────────────────────
 
-def _download_youtube_sync(youtube_url: str, output_path: str) -> str:
-    """Download a YouTube video via yt-dlp (blocking). Runs in a thread."""
-    cookie_file = _write_cookie_file()
-
-    ydl_opts = {
+def _base_opts(output_path: str) -> dict:
+    """Common yt-dlp options shared across all download strategies."""
+    return {
         "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "outtmpl": output_path,
         "quiet": False,
         "no_warnings": False,
-        "socket_timeout": 60,
         "merge_output_format": "mp4",
-        "retries": 5,
-        "fragment_retries": 5,
+        "socket_timeout": 60,
+        "retries": 10,
+        "fragment_retries": 10,
+        "file_access_retries": 5,
+        # Human-like pacing — critical for avoiding rate limits in batch mode
+        "sleep_interval": 2,
+        "max_sleep_interval": 5,
+        "sleep_interval_requests": 1,
     }
 
-    if cookie_file:
-        ydl_opts["cookiefile"] = cookie_file
-        logger.info("Using authenticated YouTube cookies for download.")
-    else:
-        # Fallback: try mweb client without cookies (likely to fail on Cloud Run)
-        ydl_opts["extractor_args"] = {
+
+def _primary_impersonation_opts(output_path: str) -> dict:
+    """
+    PRIMARY strategy: Chrome browser impersonation + multi-client player fallback.
+    Works for most public YouTube videos without cookies.
+    """
+    opts = _base_opts(output_path)
+    opts.update({
+        # Impersonate a real Chrome browser — yt-dlp spoofs TLS fingerprint + headers
+        "impersonate": "chrome",
+        "http_headers": {
+            "User-Agent": _CHROME_UA,
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        },
+        # Try 5 official YouTube player clients in order:
+        # web       → standard desktop client
+        # ios       → Apple mobile client (less bot-checked)
+        # android   → Google mobile client
+        # web_safari → Safari desktop spoofing (bypasses some SABR checks)
+        # tv        → YouTube TV embedded client
+        "extractor_args": {
             "youtube": {
-                "player_client": ["mweb", "web_creator"],
+                "player_client": ["web", "ios", "android", "web_safari", "tv"],
             }
-        }
-        logger.warning("No cookies — falling back to mweb client (may fail).")
+        },
+    })
+    return opts
 
+
+def _cookie_fallback_opts(output_path: str, cookie_file: str) -> dict:
+    """
+    FALLBACK strategy: Authenticated download using browser-exported cookies.
+    Required when impersonation is blocked by YouTube's bot detection.
+    """
+    opts = _base_opts(output_path)
+    opts.update({
+        "cookiefile": cookie_file,
+        "http_headers": {"User-Agent": _CHROME_UA},
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["web", "ios", "tv"],
+            }
+        },
+    })
+    return opts
+
+
+# ── Download backends ─────────────────────────────────────────────────────────
+
+def _download_youtube_sync(youtube_url: str, output_path: str) -> str:
+    """
+    Download a YouTube video using a two-phase strategy:
+      1. Chrome impersonation (no cookies needed) — for public videos
+      2. Cookie authentication fallback — for bot-detection-heavy environments
+
+    Always runs in a thread via asyncio.to_thread().
+    """
+    cookie_file = _write_cookie_file()
+
+    # ── Phase 1: Chrome impersonation ────────────────────────────────────────
+    logger.info("YouTube download — Phase 1: Chrome impersonation + multi-client")
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        opts = _primary_impersonation_opts(output_path)
+        with yt_dlp.YoutubeDL(opts) as ydl:
             ydl.download([youtube_url])
-    finally:
-        # Always clean up the temp cookie file
-        if cookie_file and os.path.exists(cookie_file):
-            os.unlink(cookie_file)
-            logger.info("Cleaned up temp cookie file.")
+        logger.info("Phase 1 succeeded (Chrome impersonation).")
+        _cleanup_cookie(cookie_file)
+        return _resolve_output_path(output_path)
+    except Exception as e:
+        logger.warning(f"Phase 1 failed: {e!s:.200}")
 
-    # yt-dlp sometimes appends the extension automatically
+    # ── Phase 2: Cookie authentication ───────────────────────────────────────
+    if cookie_file:
+        logger.info("YouTube download — Phase 2: Cookie-based authentication")
+        try:
+            opts = _cookie_fallback_opts(output_path, cookie_file)
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                ydl.download([youtube_url])
+            logger.info("Phase 2 succeeded (cookie auth).")
+            _cleanup_cookie(cookie_file)
+            return _resolve_output_path(output_path)
+        except Exception as e:
+            logger.error(f"Phase 2 failed: {e!s:.200}")
+            _cleanup_cookie(cookie_file)
+            raise RuntimeError(
+                f"YouTube download failed after both strategies. "
+                f"Re-export fresh Firefox cookies and update YOUTUBE_COOKIES. Error: {e}"
+            ) from e
+    else:
+        raise RuntimeError(
+            "YouTube download failed (Chrome impersonation blocked). "
+            "Set YOUTUBE_COOKIES env var with fresh Firefox cookies to enable fallback."
+        )
+
+
+def _resolve_output_path(output_path: str) -> str:
+    """yt-dlp sometimes auto-appends .mp4 — normalise the path."""
     if not os.path.exists(output_path) and os.path.exists(output_path + ".mp4"):
         return output_path + ".mp4"
     return output_path
+
+
+def _cleanup_cookie(cookie_file: str | None) -> None:
+    """Safely remove the temp cookie file."""
+    if cookie_file and os.path.exists(cookie_file):
+        try:
+            os.unlink(cookie_file)
+            logger.info("Temp cookie file cleaned up.")
+        except Exception:
+            pass
 
 
 def _download_gcs_sync(gcs_url: str, output_path: str) -> str:
@@ -141,7 +225,7 @@ def _download_gcs_sync(gcs_url: str, output_path: str) -> str:
     without_scheme = gcs_uri.replace("gs://", "")
     bucket_name, blob_name = without_scheme.split("/", 1)
     client = _get_storage_client()
-    blob   = client.bucket(bucket_name).blob(blob_name)
+    blob = client.bucket(bucket_name).blob(blob_name)
     blob.download_to_filename(output_path)
     logger.info(f"Downloaded gs://{bucket_name}/{blob_name} → {output_path}")
     return output_path
