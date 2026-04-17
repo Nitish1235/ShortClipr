@@ -213,6 +213,28 @@ def _simple_effect(key: str) -> str:
             return ""
 
 
+def _wrap_text_lines(text: str, max_chars_per_line: int = 18) -> list[str]:
+    """Wrap text to prevent FFmpeg drawtext overflow."""
+    if not text:
+        return []
+    words = text.split()
+    lines = []
+    current_line = []
+    current_len = 0
+    for w in words:
+        if current_len + len(w) + 1 <= max_chars_per_line:
+            current_line.append(w)
+            current_len += len(w) + 1
+        else:
+            if current_line:
+                lines.append(" ".join(current_line))
+            current_line = [w]
+            current_len = len(w)
+    if current_line:
+        lines.append(" ".join(current_line))
+    return lines
+
+
 def _overlay_filters(
     effects:     list[str],
     top_title:   str,
@@ -240,24 +262,27 @@ def _overlay_filters(
 
     # ── Top title ─────────────────────────────────────────────────────────────
     if top_title:
-        esc = _esc(top_title)
-        # Drop shadow (offset 3px)
-        parts.append(
-            f"drawtext=fontfile={FONT_PATH}"
-            f":text='{esc}'"
-            f":fontcolor=black@0.55"
-            f":fontsize=64"
-            f":x=(w-tw)/2+3:y=63"
-        )
-        # White main text with black border
-        parts.append(
-            f"drawtext=fontfile={FONT_PATH}"
-            f":text='{esc}'"
-            f":fontcolor=white"
-            f":fontsize=64"
-            f":borderw=4:bordercolor=black@0.85"
-            f":x=(w-tw)/2:y=60"
-        )
+        title_lines = _wrap_text_lines(top_title, max_chars_per_line=20)
+        for i, line in enumerate(title_lines):
+            esc = _esc(line)
+            y_base = 60 + (i * 75)
+            # Drop shadow (offset 3px)
+            parts.append(
+                f"drawtext=fontfile={FONT_PATH}"
+                f":text='{esc}'"
+                f":fontcolor=black@0.55"
+                f":fontsize=64"
+                f":x=(w-tw)/2+3:y={y_base + 3}"
+            )
+            # White main text with black border
+            parts.append(
+                f"drawtext=fontfile={FONT_PATH}"
+                f":text='{esc}'"
+                f":fontcolor=white"
+                f":fontsize=64"
+                f":borderw=4:bordercolor=black@0.85"
+                f":x=(w-tw)/2:y={y_base}"
+            )
 
     # ── Bottom tag ────────────────────────────────────────────────────────────
     if bottom_tag:
@@ -265,7 +290,7 @@ def _overlay_filters(
         # Pill shape approximation: two overlapping filled rectangles
         # Outer rect (full width) + inner rect slightly shorter = rounded ends illusion
         # Positioned at bottom, above any watermark
-        pill_w  = 560
+        pill_w  = 800
         pill_h  = 88
         pill_x  = f"(iw-{pill_w})/2"
         pill_y  = f"ih-187"

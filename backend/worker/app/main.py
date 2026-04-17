@@ -82,7 +82,21 @@ async def _pop_job(client: httpx.AsyncClient) -> dict | None:
         resp.raise_for_status()
         result = resp.json().get("result")
         if result:
-            return json.loads(result)
+            data = json.loads(result)
+            # Upstash sometimes stores payload inside an array if pushed via json=[payload]
+            while isinstance(data, list):
+                if not data:
+                    return None
+                data = data[0]
+                if isinstance(data, str):
+                    data = json.loads(data)
+            
+            if isinstance(data, str):
+                data = json.loads(data)
+                
+            if isinstance(data, dict):
+                return data
+                
     except Exception as e:
         logger.error(f"Redis pop error: {e}")
     return None

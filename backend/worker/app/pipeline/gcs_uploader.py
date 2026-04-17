@@ -63,9 +63,9 @@ def _upload_sync(
     bucket = client.bucket(GCS_BUCKET_OUTPUT)
     blob   = bucket.blob(gcs_path)
     blob.upload_from_filename(local_path, content_type=content_type)
+    
     if make_public:
-        blob.make_public()
-        return blob.public_url
+        return f"https://storage.googleapis.com/{GCS_BUCKET_OUTPUT}/{gcs_path}"
     return f"gs://{GCS_BUCKET_OUTPUT}/{gcs_path}"
 
 
