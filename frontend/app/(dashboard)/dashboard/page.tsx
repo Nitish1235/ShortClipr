@@ -645,10 +645,35 @@ export default function DashboardPage() {
                       </div>
                     )}
                     {isExpanded && job.status === "processing" && (
-                      <div style={{ padding: "12px 20px 18px", borderTop: "1px solid #F3F4F6", textAlign: "center" }}>
+                      <div style={{ padding: "12px 20px 18px", borderTop: "1px solid #F3F4F6", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
                         <p style={{ fontSize: "13px", color: "#14B8A6", fontWeight: 600, margin: 0 }}>
-                          ⚡ Processing… auto-refreshes every 6s
+                          ⚡ Processing... auto-refreshes every 6s
                         </p>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (window.confirm("Are you sure you want to cancel this job?")) {
+                              try {
+                                await apiFetch(`/jobs/${job.job_id}`, { method: "DELETE" });
+                                loadJobs();
+                              } catch (err) {
+                                alert("Failed to cancel job.");
+                              }
+                            }
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "1px solid #EF4444",
+                            color: "#EF4444",
+                            borderRadius: "6px",
+                            padding: "6px 14px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer"
+                          }}
+                        >
+                          Cancel Job
+                        </button>
                       </div>
                     )}
                   </div>
