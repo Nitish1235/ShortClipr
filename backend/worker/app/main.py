@@ -121,11 +121,13 @@ async def _update_job(
         sets.append("completed_at = NOW()")
 
     vals.append(job_id)
-    sql = f"UPDATE jobs SET {', '.join(sets)} WHERE job_id = ${i}"
+    # Prevent overwriting a 'cancelled' status set by the API
+    sql = f"UPDATE jobs SET {', '.join(sets)} WHERE job_id = ${i} AND status != 'cancelled' RETURNING job_id"
 
     pool = await _get_pool()
     async with pool.acquire() as conn:
-        await conn.execute(sql, *vals)
+        result = await conn.fetchrow(sql, *vals)
+        return result is not None
 
 
 async def _save_clips(job_id: str, user_id: str, clips: list[dict]) -> None:
@@ -189,7 +191,9 @@ async def _process_job(job: dict, redis_client: httpx.AsyncClient) -> None:
     await _update_job(job_id, "processing", 5, "Pipeline starting")
 
     async def _status_cb(step: str, pct: int):
-        await _update_job(job_id, "processing", pct, step)
+        success = await _update_job(job_id, "processing", pct, step)
+        if not success:
+            raise RuntimeError("Job Cancelled")
 
     try:
         clips = await orchestrator.run_pipeline(
@@ -218,6 +222,13 @@ async def _process_job(job: dict, redis_client: httpx.AsyncClient) -> None:
         logger.warning(f"[{job_id}] Validation error: {e}")
         await _update_job(job_id, "failed", error=str(e), step="Validation failed")
 
+    except RuntimeError as e:
+        if str(e) == "Job Cancelled":
+            logger.info(f"[{job_id}] Aborted — Job was cancelled by user.")
+            return
+        # If it's a different RuntimeError, let it fall through or re-raise
+        raise e
+        
     except Exception as e:
         logger.exception(f"[{job_id}] Pipeline error (attempt {attempt}): {e}")
         if attempt < MAX_JOB_ATTEMPTS:
