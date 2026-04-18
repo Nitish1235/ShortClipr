@@ -34,6 +34,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ffmpeg \
+    nodejs \
     libglib2.0-0 \
     libsm6 \
     libxext6 \

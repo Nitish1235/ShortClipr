@@ -101,9 +101,8 @@ def _yt_base_opts() -> dict:
                 "player_client": ["ios", "web"],
             },
             # Tells bgutil-ytdlp-pot-provider where our bgutil-pot HTTP server is.
-            # Harmless if the plugin isn't loaded — just ignored.
-            "getpot:bgutilhttp": {
-                "base_url": [_BGUTIL_BASE_URL],
+            "getpot": {
+                "bgutilhttp_base_url": [_BGUTIL_BASE_URL],
             },
         },
     }
