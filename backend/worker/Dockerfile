@@ -26,9 +26,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     PATH="/opt/venv/bin:$PATH" \
-    # Suppress MediaPipe noisy logs
     GLOG_minloglevel=2 \
-    TF_CPP_MIN_LOG_LEVEL=3
+    TF_CPP_MIN_LOG_LEVEL=3 \
+    BGUTIL_HTTP_SERVER_PORT=4416
 
 # ── System deps: FFmpeg, OpenCV, MediaPipe, fonts, yt-dlp runtime ────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -60,13 +60,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed Python packages from builder
 COPY --from=builder /opt/venv /opt/venv
 
+# Install bgutil PO token server (must run as root before USER switch).
+# bgutil-ytdlp-pot-provider is a Node.js server that generates YouTube
+# Proof-of-Origin tokens, enabling yt-dlp to bypass datacenter IP bot detection.
+RUN npm install -g bgutil-ytdlp-pot-provider 2>&1 | tail -5
+
 # Create non-root user
 RUN addgroup --system workergroup && adduser --system --ingroup workergroup workeruser
 
-# Scratch dir for temp files
-RUN mkdir -p /tmp/shortclipr && chown workeruser:workergroup /tmp/shortclipr
+# Scratch dirs — owned by workeruser
+RUN mkdir -p /tmp/shortclipr /tmp/yt-dlp-cache \
+    && chown -R workeruser:workergroup /tmp/shortclipr /tmp/yt-dlp-cache
 
 COPY ./app /app/app
+
+# Allow workeruser to write yt-dlp plugin cache
+RUN chown -R workeruser:workergroup /app
 
 USER workeruser
 

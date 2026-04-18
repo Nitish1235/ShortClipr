@@ -1,27 +1,30 @@
 """
-downloader.py — Download source video from YouTube (yt-dlp) or Google Cloud Storage.
+downloader.py — Download source video/audio from YouTube (yt-dlp) or GCS.
 
-Download Strategy (in order of attempt):
-  1. PRIMARY: Heavy browser impersonation via yt-dlp's --impersonate chrome flag.
-     Tries multiple official YouTube player clients (web, ios, android, tv, safari).
-     Works for most public videos without requiring user cookies.
+Download Strategy:
+  YouTube:
+    • Audio-first: download ONLY the audio track (bestaudio ~5-30MB vs 2GB video).
+      This is used for Whisper transcription and moment detection.
+    • Clip segments: after GPT identifies viral timestamps, download ONLY those
+      specific video segments using yt-dlp's download_ranges feature.
+    • bgutil-ytdlp-pot-provider plugin auto-generates YouTube PO tokens to bypass
+      datacenter IP bot detection — no cookies required.
 
-  2. FALLBACK: Cookie-based authentication via YOUTUBE_COOKIES env var.
-     Required for age-restricted or bot-detection-heavy environments.
-     Set YOUTUBE_COOKIES to a base64-encoded Netscape cookies.txt from Firefox.
+  GCS (user-uploaded file):
+    • Download the full video from GCS (fast — Google internal network).
+    • Audio is extracted from the local file via FFmpeg (audio_extractor.py).
 
 Supported GCS video_url formats:
   gs://bucket-name/path/to/file.mp4
   https://storage.googleapis.com/bucket/path/to/file.mp4
-  https://storage.cloud.google.com/bucket/path/to/file.mp4
 """
 import asyncio
-import base64
 import logging
 import os
 import re
-import tempfile
+
 import yt_dlp
+from yt_dlp.utils import download_range_func
 from google.cloud import storage
 
 logger = logging.getLogger(__name__)
@@ -29,7 +32,6 @@ logger = logging.getLogger(__name__)
 GCP_PROJECT_ID  = os.getenv("GCP_PROJECT_ID")
 _storage_client = None
 
-# Realistic Chrome 130 User-Agent — matches what yt-dlp impersonation expects
 _CHROME_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -51,7 +53,6 @@ _GCS_HTTPS_RE = re.compile(
 )
 
 def _to_gcs_uri(url: str) -> str:
-    """Convert any GCS URL format to a canonical gs://bucket/path URI."""
     if url.startswith("gs://"):
         return url
     m = _GCS_HTTPS_RE.match(url)
@@ -61,166 +62,110 @@ def _to_gcs_uri(url: str) -> str:
     return url
 
 
-# ── Cookie helpers ────────────────────────────────────────────────────────────
+# ── yt-dlp base options ───────────────────────────────────────────────────────
 
-def _write_cookie_file() -> str | None:
+def _yt_base_opts() -> dict:
     """
-    Read YOUTUBE_COOKIES env var (base64-encoded Netscape cookies.txt from Firefox),
-    decode and write to a temp file. Returns path or None if not set.
+    Common yt-dlp options. bgutil-ytdlp-pot-provider is a yt-dlp plugin that
+    auto-registers itself — no extra config needed here. It intercepts all
+    YouTube requests and injects valid PO tokens automatically.
     """
-    raw = os.getenv("YOUTUBE_COOKIES", "").strip()
-    if not raw:
-        return None
-    try:
-        decoded = base64.b64decode(raw).decode("utf-8")
-        tmp = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", prefix="yt_cookies_", delete=False
-        )
-        tmp.write(decoded)
-        tmp.flush()
-        tmp.close()
-        logger.info(f"YouTube cookies written to: {tmp.name}")
-        return tmp.name
-    except Exception as e:
-        logger.error(f"Failed to decode YOUTUBE_COOKIES: {e}")
-        return None
-
-
-# ── yt-dlp option builders ────────────────────────────────────────────────────
-
-def _base_opts(output_path: str) -> dict:
-    """Common yt-dlp options shared across all download strategies."""
     return {
-        "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-        "outtmpl": output_path,
         "quiet": False,
         "no_warnings": False,
-        "merge_output_format": "mp4",
         "socket_timeout": 60,
-        "retries": 10,
-        "fragment_retries": 10,
-        "file_access_retries": 5,
-        # Human-like pacing — critical for avoiding rate limits in batch mode
-        "sleep_interval": 2,
-        "max_sleep_interval": 5,
-        "sleep_interval_requests": 1,
-    }
-
-
-def _primary_impersonation_opts(output_path: str) -> dict:
-    """
-    PRIMARY strategy: Chrome browser impersonation + multi-client player fallback.
-    Works for most public YouTube videos without cookies.
-    """
-    opts = _base_opts(output_path)
-    opts.update({
-        # Impersonate a real Chrome browser — yt-dlp spoofs TLS fingerprint + headers
-        "impersonate": "chrome",
+        "retries": 8,
+        "fragment_retries": 8,
         "http_headers": {
             "User-Agent": _CHROME_UA,
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
-        # Try 5 official YouTube player clients in order:
-        # web       → standard desktop client
-        # ios       → Apple mobile client (less bot-checked)
-        # android   → Google mobile client
-        # web_safari → Safari desktop spoofing (bypasses some SABR checks)
-        # tv        → YouTube TV embedded client
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["web", "ios", "android", "web_safari", "tv"],
-            }
-        },
-    })
-    return opts
+        # Sleep between requests to appear human
+        "sleep_interval": 1,
+        "max_sleep_interval": 3,
+    }
 
 
-def _cookie_fallback_opts(output_path: str, cookie_file: str) -> dict:
+# ── Audio-only download ───────────────────────────────────────────────────────
+
+def _download_audio_sync(youtube_url: str, output_path: str) -> str:
     """
-    FALLBACK strategy: Authenticated download using browser-exported cookies.
-    Required when impersonation is blocked by YouTube's bot detection.
+    Download only the audio track from YouTube. ~5-30MB vs 1-2GB for full video.
+    Used for Whisper transcription. Runs in a thread.
     """
-    opts = _base_opts(output_path)
+    opts = _yt_base_opts()
     opts.update({
-        "cookiefile": cookie_file,
-        "http_headers": {"User-Agent": _CHROME_UA},
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["web", "ios", "tv"],
-            }
-        },
+        "format": "bestaudio[ext=m4a]/bestaudio/best",
+        # Use a predictable output template so we can find the file reliably
+        "outtmpl": output_path,
+        "postprocessors": [{
+            # Convert to 16kHz mono WAV — Whisper's native format
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "wav",
+            "preferredquality": "0",
+        }],
     })
-    return opts
+
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        ydl.download([youtube_url])
+
+    # yt-dlp replaces the extension of outtmpl with .wav after postprocessing.
+    # e.g. /tmp/.../audio.m4a → /tmp/.../audio.wav
+    base_dir = os.path.dirname(output_path)
+    stem     = os.path.splitext(os.path.basename(output_path))[0]
+
+    # Primary: exact expected path
+    wav_path = os.path.join(base_dir, f"{stem}.wav")
+    if os.path.exists(wav_path):
+        return wav_path
+
+    # Fallback: any audio file in the working dir
+    for fname in sorted(os.listdir(base_dir)):
+        if fname.endswith((".wav", ".m4a", ".mp3", ".webm", ".opus")):
+            fpath = os.path.join(base_dir, fname)
+            logger.info(f"Audio fallback resolved: {fpath}")
+            return fpath
+
+    raise FileNotFoundError(
+        f"yt-dlp finished but no audio file found in {base_dir}. "
+        f"Check yt-dlp postprocessor logs above."
+    )
 
 
-# ── Download backends ─────────────────────────────────────────────────────────
+# ── Clip segment download ─────────────────────────────────────────────────────
 
-def _download_youtube_sync(youtube_url: str, output_path: str) -> str:
+def _download_clip_segment_sync(
+    youtube_url: str,
+    start: float,
+    end: float,
+    output_path: str,
+) -> str:
     """
-    Download a YouTube video using a two-phase strategy:
-      1. Chrome impersonation (no cookies needed) — for public videos
-      2. Cookie authentication fallback — for bot-detection-heavy environments
-
-    Always runs in a thread via asyncio.to_thread().
+    Download only a specific time range of a YouTube video.
+    e.g. start=120.0, end=165.0 downloads only seconds 120-165.
+    This avoids downloading the entire video — critical for large podcasts/streams.
+    Runs in a thread.
     """
-    cookie_file = _write_cookie_file()
+    opts = _yt_base_opts()
+    opts.update({
+        "format": "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+        "outtmpl": output_path,
+        "merge_output_format": "mp4",
+        # download_range_func tells yt-dlp to only fetch the specified byte ranges
+        "download_ranges": download_range_func(None, [(start, end)]),
+        # Force keyframe cuts at exact timestamps (may be slightly imprecise but fast)
+        "force_keyframes_at_cuts": True,
+    })
 
-    # ── Phase 1: Chrome impersonation ────────────────────────────────────────
-    logger.info("YouTube download — Phase 1: Chrome impersonation + multi-client")
-    try:
-        opts = _primary_impersonation_opts(output_path)
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.download([youtube_url])
-        logger.info("Phase 1 succeeded (Chrome impersonation).")
-        _cleanup_cookie(cookie_file)
-        return _resolve_output_path(output_path)
-    except Exception as e:
-        logger.warning(f"Phase 1 failed: {e!s:.200}")
+    with yt_dlp.YoutubeDL(opts) as ydl:
+        ydl.download([youtube_url])
 
-    # ── Phase 2: Cookie authentication ───────────────────────────────────────
-    if cookie_file:
-        logger.info("YouTube download — Phase 2: Cookie-based authentication")
-        try:
-            opts = _cookie_fallback_opts(output_path, cookie_file)
-            with yt_dlp.YoutubeDL(opts) as ydl:
-                ydl.download([youtube_url])
-            logger.info("Phase 2 succeeded (cookie auth).")
-            _cleanup_cookie(cookie_file)
-            return _resolve_output_path(output_path)
-        except Exception as e:
-            logger.error(f"Phase 2 failed: {e!s:.200}")
-            _cleanup_cookie(cookie_file)
-            raise RuntimeError(
-                f"YouTube download failed after both strategies. "
-                f"Re-export fresh Firefox cookies and update YOUTUBE_COOKIES. Error: {e}"
-            ) from e
-    else:
-        raise RuntimeError(
-            "YouTube download failed (Chrome impersonation blocked). "
-            "Set YOUTUBE_COOKIES env var with fresh Firefox cookies to enable fallback."
-        )
+    return _resolve_path(output_path)
 
 
-def _resolve_output_path(output_path: str) -> str:
-    """yt-dlp sometimes auto-appends .mp4 — normalise the path."""
-    if not os.path.exists(output_path) and os.path.exists(output_path + ".mp4"):
-        return output_path + ".mp4"
-    return output_path
-
-
-def _cleanup_cookie(cookie_file: str | None) -> None:
-    """Safely remove the temp cookie file."""
-    if cookie_file and os.path.exists(cookie_file):
-        try:
-            os.unlink(cookie_file)
-            logger.info("Temp cookie file cleaned up.")
-        except Exception:
-            pass
-
+# ── GCS download ──────────────────────────────────────────────────────────────
 
 def _download_gcs_sync(gcs_url: str, output_path: str) -> str:
-    """Download from GCS (blocking). Accepts both gs:// and HTTPS GCS URLs."""
     gcs_uri = _to_gcs_uri(gcs_url)
     without_scheme = gcs_uri.replace("gs://", "")
     bucket_name, blob_name = without_scheme.split("/", 1)
@@ -231,31 +176,85 @@ def _download_gcs_sync(gcs_url: str, output_path: str) -> str:
     return output_path
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _resolve_path(output_path: str) -> str:
+    """Handle yt-dlp auto-appending extensions."""
+    if os.path.exists(output_path):
+        return output_path
+    for ext in (".mp4", ".webm", ".mkv"):
+        if os.path.exists(output_path + ext):
+            return output_path + ext
+    return output_path
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
-async def download(
-    job_id:      str,
-    youtube_url: str | None,
-    video_url:   str | None,
-    work_dir:    str,
+async def download_audio(
+    job_id: str,
+    youtube_url: str,
+    work_dir: str,
 ) -> str:
     """
-    Download the source video and return the local file path.
-    Prefers youtube_url over video_url (GCS) when both are provided.
+    Download only the audio track from YouTube for Whisper transcription.
+    Returns path to the local audio file (.wav).
+    """
+    os.makedirs(work_dir, exist_ok=True)
+    output_path = os.path.join(work_dir, "audio.m4a")
+    logger.info(f"[{job_id}] Downloading YouTube audio-only: {youtube_url}")
+    result = await asyncio.to_thread(_download_audio_sync, youtube_url, output_path)
+    logger.info(f"[{job_id}] Audio download complete → {result}")
+    return result
+
+
+async def download_clip(
+    job_id: str,
+    youtube_url: str,
+    start: float,
+    end: float,
+    work_dir: str,
+    clip_index: int,
+) -> str:
+    """
+    Download a specific time-range segment of a YouTube video.
+    Returns path to the local .mp4 clip file.
+    """
+    output_path = os.path.join(work_dir, f"raw_clip_{clip_index}.mp4")
+    logger.info(f"[{job_id}] Downloading clip segment {clip_index}: {start:.1f}s → {end:.1f}s")
+    result = await asyncio.to_thread(
+        _download_clip_segment_sync, youtube_url, start, end, output_path
+    )
+    logger.info(f"[{job_id}] Clip {clip_index} download complete → {result}")
+    return result
+
+
+async def download_gcs(
+    job_id: str,
+    video_url: str,
+    work_dir: str,
+) -> str:
+    """
+    Download a full video from Google Cloud Storage.
+    Used for user-uploaded files (not YouTube).
     """
     os.makedirs(work_dir, exist_ok=True)
     output_path = os.path.join(work_dir, "source.mp4")
+    logger.info(f"[{job_id}] Downloading GCS source: {video_url}")
+    result = await asyncio.to_thread(_download_gcs_sync, video_url, output_path)
+    logger.info(f"[{job_id}] GCS download complete → {result}")
+    return result
 
-    if youtube_url:
-        logger.info(f"[{job_id}] Downloading YouTube: {youtube_url}")
-        result = await asyncio.to_thread(_download_youtube_sync, youtube_url, output_path)
-        logger.info(f"[{job_id}] YouTube download complete → {result}")
-        return result
 
+# ── Legacy compatibility (keep old signature working) ────────────────────────
+
+async def download(
+    job_id: str,
+    youtube_url: str | None,
+    video_url: str | None,
+    work_dir: str,
+) -> str:
+    """Legacy entry point — used by GCS video_url path only."""
+    os.makedirs(work_dir, exist_ok=True)
     if video_url:
-        logger.info(f"[{job_id}] Downloading GCS source: {video_url}")
-        result = await asyncio.to_thread(_download_gcs_sync, video_url, output_path)
-        logger.info(f"[{job_id}] GCS download complete → {result}")
-        return result
-
-    raise ValueError("No video source provided. Provide youtube_url or video_url.")
+        return await download_gcs(job_id, video_url, work_dir)
+    raise ValueError("No video source provided.")
