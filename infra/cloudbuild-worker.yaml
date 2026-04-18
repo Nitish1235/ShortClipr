@@ -41,13 +41,13 @@ steps:
       - '--min-instances'
       - '1'
       - '--max-instances'
-      - '5'
+      - '10'
       - '--concurrency'
       - '1'
       - '--cpu'
-      - '4'
+      - '2'
       - '--memory'
-      - '8Gi'
+      - '4Gi'
       # CRITICAL: allows background work without an active HTTP request
       - '--no-cpu-throttling'
       # Cloud Run max request timeout (job can take up to 60 min)
