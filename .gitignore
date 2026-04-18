@@ -37,6 +37,8 @@ out/
 # ── Docker ─────────────────────────────────────────────────────
 *.tar
 .docker/
+# Pre-downloaded binaries (fetched via binaries/fetch_bgutil.sh before docker build)
+backend/worker/binaries/bgutil-pot
 
 # ── OS ─────────────────────────────────────────────────────────
 .DS_Store

@@ -10,3 +10,8 @@ venv
 .mypy_cache
 .coverage
 htmlcov
+
+# ── binaries/ ─────────────────────────────────────────────────────────────────
+# Only the compiled binary (binaries/bgutil-pot) is COPYed into the image.
+# The fetch helper script is host-only and must stay out of the build context.
+binaries/fetch_bgutil.sh

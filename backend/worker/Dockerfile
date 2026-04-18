@@ -42,29 +42,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-dejavu-core \
     fonts-liberation \
     fontconfig \
-    python3-pip \
     libcurl4 \
     libssl3 \
     ca-certificates \
-    && fc-cache -fv \
+    && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
 
-# ── bgutil-pot Rust binary ────────────────────────────────────────────────────
-# Pre-compiled Rust binary — no Node.js, no git clone, no npm needed.
-# The pip plugin (bgutil-ytdlp-pot-provider in requirements.txt) calls this
-# binary's HTTP server on port 4416 to get YouTube PO tokens.
-RUN curl -fsSL \
-    https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/latest/download/bgutil-pot-linux-x86_64 \
-    -o /usr/local/bin/bgutil-pot \
-    && chmod +x /usr/local/bin/bgutil-pot \
-    && bgutil-pot --version \
-    && echo "bgutil-pot binary OK"
+# ── bgutil-pot Rust binary (pre-downloaded, no network call needed) ───────────
+COPY ./binaries/bgutil-pot /usr/local/bin/bgutil-pot
+RUN chmod +x /usr/local/bin/bgutil-pot
 
 # ── Python venv from builder ──────────────────────────────────────────────────
 COPY --from=builder /opt/venv /opt/venv
 
+# ── Sanity checks (run as root, guaranteed PATH) ──────────────────────────────
+RUN bgutil-pot --version \
+    && python -c "import yt_dlp; print('yt-dlp OK')" \
+    && python -c "import curl_cffi; print('curl_cffi OK')"
+
 # ── Non-root user setup ───────────────────────────────────────────────────────
-RUN addgroup --system workergroup && adduser --system --ingroup workergroup workeruser
+RUN addgroup --system workergroup \
+    && adduser --system --ingroup workergroup workeruser
 
 RUN mkdir -p /tmp/shortclipr /tmp/yt-dlp-cache \
     && chown -R workeruser:workergroup /tmp/shortclipr /tmp/yt-dlp-cache
@@ -76,8 +74,5 @@ RUN chmod +x /app/start.sh \
     && chown -R workeruser:workergroup /app
 
 USER workeruser
-
-# Sanity check — fail build early if something is broken
-RUN bgutil-pot --version && python -c "import yt_dlp; print('yt-dlp OK')"
 
 CMD ["/bin/bash", "/app/start.sh"]
