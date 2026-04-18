@@ -28,9 +28,9 @@ logging.basicConfig(
 logger = logging.getLogger("shortclipr.worker")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-SUPABASE_DB_URL     = os.environ["SUPABASE_DB_URL"]
-UPSTASH_REDIS_URL   = os.environ["UPSTASH_REDIS_URL"]
-UPSTASH_REDIS_TOKEN = os.environ["UPSTASH_REDIS_TOKEN"]
+SUPABASE_DB_URL     = os.getenv("SUPABASE_DB_URL", "")
+UPSTASH_REDIS_URL   = os.getenv("UPSTASH_REDIS_URL", "")
+UPSTASH_REDIS_TOKEN = os.getenv("UPSTASH_REDIS_TOKEN", "")
 REDIS_JOB_QUEUE     = os.getenv("REDIS_JOB_QUEUE", "shortclipr:jobs")
 MAX_JOB_ATTEMPTS    = 3
 MIN_POLL_INTERVAL_SEC = 2
@@ -311,13 +311,20 @@ def _run_dummy_server():
 
 
 if __name__ == "__main__":
+    # ── Health server starts FIRST — always — so Cloud Run startup probe passes
+    # regardless of secret availability or any downstream errors.
+    threading.Thread(target=_run_dummy_server, daemon=True, name="health-server").start()
+    logger.info(f"Health server started on port {os.environ.get('PORT', 8080)}")
+
     required = ["SUPABASE_DB_URL", "UPSTASH_REDIS_URL", "UPSTASH_REDIS_TOKEN"]
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
-        logger.critical(f"Missing env vars: {missing}. Cloud Run deployment succeeded, but worker is sleeping. Please add env vars in the UI!")
-        # Run the dummy server on the main thread to keep the container alive and healthy
-        _run_dummy_server()
+        logger.critical(
+            f"Missing required env vars: {missing}. "
+            "Worker is idle — add secrets in Cloud Run console then redeploy."
+        )
+        # Block forever so the container stays alive and healthy for Cloud Run.
+        # The health server thread is daemon=True so it keeps running.
+        threading.Event().wait()
     else:
-        # We have the secrets! Start the dummy HTTP server in background, then run the worker
-        threading.Thread(target=_run_dummy_server, daemon=True).start()
         asyncio.run(worker_loop())
