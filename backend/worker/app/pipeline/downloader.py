@@ -27,12 +27,6 @@ import yt_dlp
 from yt_dlp.utils import download_range_func
 from google.cloud import storage
 
-try:
-    from yt_dlp.networking.impersonate import ImpersonateTarget
-    _IMPERSONATE = ImpersonateTarget("chrome")
-except Exception:
-    _IMPERSONATE = None  # older yt-dlp or curl_cffi not available
-
 logger = logging.getLogger(__name__)
 
 GCP_PROJECT_ID  = os.getenv("GCP_PROJECT_ID")
@@ -77,13 +71,12 @@ def _to_gcs_uri(url: str) -> str:
 def _yt_base_opts() -> dict:
     """
     Common yt-dlp options.
-    - Impersonates Chrome via curl_cffi to spoof TLS fingerprint.
-    - Forces the web player client so bgutil PO tokens are actually used.
+    - Forces the web player client so bgutil PO tokens are actually injected.
       (Android VR client doesn't use PO tokens → still gets bot-detected.)
     - bgutil-ytdlp-pot-provider pip plugin auto-registers and injects PO tokens;
       extractor_args tells it where our bgutil-pot HTTP server is.
     """
-    opts: dict = {
+    return {
         "quiet": False,
         "no_warnings": False,
         "socket_timeout": 60,
@@ -106,10 +99,6 @@ def _yt_base_opts() -> dict:
             },
         },
     }
-    # Spoof Chrome TLS fingerprint via curl_cffi (bypasses TLS-based bot detection)
-    if _IMPERSONATE is not None:
-        opts["impersonate"] = _IMPERSONATE
-    return opts
 
 
 
