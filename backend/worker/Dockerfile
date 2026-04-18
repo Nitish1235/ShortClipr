@@ -33,7 +33,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # ── System deps ───────────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    gnupg \
     ffmpeg \
     libglib2.0-0 \
     libsm6 \
@@ -50,22 +49,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Node.js 20 LTS via NodeSource ────────────────────────────────────────────
-# Debian's apt repo ships an old node — yt-dlp requires v18+ for JS challenge solving.
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/* \
-    && node --version \
-    && npm --version
-
-# ── bgutil npm server ─────────────────────────────────────────────────────────
-# @imputnet/bgutil-ytdlp-pot-provider-server — the Node.js HTTP server that
-# solves BotGuard challenges and generates YouTube PO tokens on port 4416.
-# The pip package (bgutil-ytdlp-pot-provider in requirements.txt) is the
-# yt-dlp plugin that calls this server to inject tokens automatically.
-RUN npm install -g @imputnet/bgutil-ytdlp-pot-provider-server \
-    && echo "bgutil installed at: $(npm root -g)/@imputnet/bgutil-ytdlp-pot-provider-server" \
-    && node -e "require('@imputnet/bgutil-ytdlp-pot-provider-server'); console.log('bgutil node module OK')"
+# ── bgutil-pot Rust binary ────────────────────────────────────────────────────
+# Pre-compiled Rust binary — no Node.js, no git clone, no npm needed.
+# The pip plugin (bgutil-ytdlp-pot-provider in requirements.txt) calls this
+# binary's HTTP server on port 4416 to get YouTube PO tokens.
+RUN curl -fsSL \
+    https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/latest/download/bgutil-pot-linux-x86_64 \
+    -o /usr/local/bin/bgutil-pot \
+    && chmod +x /usr/local/bin/bgutil-pot \
+    && bgutil-pot --version \
+    && echo "bgutil-pot binary OK"
 
 # ── Python venv from builder ──────────────────────────────────────────────────
 COPY --from=builder /opt/venv /opt/venv
@@ -73,11 +66,9 @@ COPY --from=builder /opt/venv /opt/venv
 # ── Non-root user setup ───────────────────────────────────────────────────────
 RUN addgroup --system workergroup && adduser --system --ingroup workergroup workeruser
 
-# Scratch dirs for yt-dlp and temp files
 RUN mkdir -p /tmp/shortclipr /tmp/yt-dlp-cache \
     && chown -R workeruser:workergroup /tmp/shortclipr /tmp/yt-dlp-cache
 
-# Copy app + startup script
 COPY ./app /app/app
 COPY ./start.sh /app/start.sh
 
@@ -86,9 +77,7 @@ RUN chmod +x /app/start.sh \
 
 USER workeruser
 
-# Sanity checks — fail the build early if something is missing
-RUN node --version \
-    && node -e "require('@imputnet/bgutil-ytdlp-pot-provider-server'); console.log('bgutil module verified')" \
-    && python -c "import yt_dlp; print('yt-dlp OK')"
+# Sanity check — fail build early if something is broken
+RUN bgutil-pot --version && python -c "import yt_dlp; print('yt-dlp OK')"
 
 CMD ["/bin/bash", "/app/start.sh"]
