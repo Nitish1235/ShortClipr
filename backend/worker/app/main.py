@@ -260,11 +260,38 @@ async def _process_job(job: dict, redis_client: httpx.AsyncClient) -> None:
             )
 
 
+# ── bgutil-pot readiness check ───────────────────────────────────────────────
+async def _wait_for_bgutil(timeout: int = 30) -> bool:
+    """
+    Wait up to `timeout` seconds for the bgutil-pot HTTP server to be ready.
+    This server starts in the background (start.sh) at the same time as Python,
+    so there's a short race window. We must wait before processing YouTube jobs
+    or the PO token provider will fail silently and yt-dlp hits bot detection.
+    """
+    port = int(os.getenv("BGUTIL_HTTP_SERVER_PORT", "4416"))
+    url  = f"http://127.0.0.1:{port}/token"
+    async with httpx.AsyncClient() as client:
+        for i in range(timeout):
+            try:
+                r = await client.get(url, timeout=2.0)
+                if r.status_code < 500:
+                    logger.info(f"bgutil-pot ready after {i}s on port {port}")
+                    return True
+            except Exception:
+                pass
+            await asyncio.sleep(1)
+    logger.warning(f"bgutil-pot did not respond within {timeout}s — proceeding without PO tokens")
+    return False
+
+
 # ── Main loop ─────────────────────────────────────────────────────────────────
 async def worker_loop() -> None:
     # Initialise DB pool on startup
     await _get_pool()
     logger.info(f"Worker started. Polling {REDIS_JOB_QUEUE} natively balancing between min {MIN_POLL_INTERVAL_SEC}s and max {MAX_POLL_INTERVAL_SEC}s")
+
+    # Wait for bgutil-pot before processing any YouTube jobs
+    await _wait_for_bgutil()
 
     consecutive_errors = 0
     current_poll_interval = MIN_POLL_INTERVAL_SEC

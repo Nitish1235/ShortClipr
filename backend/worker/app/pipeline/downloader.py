@@ -27,6 +27,12 @@ import yt_dlp
 from yt_dlp.utils import download_range_func
 from google.cloud import storage
 
+try:
+    from yt_dlp.networking.impersonate import ImpersonateTarget
+    _IMPERSONATE = ImpersonateTarget("chrome")
+except Exception:
+    _IMPERSONATE = None  # older yt-dlp or curl_cffi not available
+
 logger = logging.getLogger(__name__)
 
 GCP_PROJECT_ID  = os.getenv("GCP_PROJECT_ID")
@@ -36,6 +42,10 @@ _CHROME_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/130.0.0.0 Safari/537.36"
+)
+
+_BGUTIL_BASE_URL = (
+    f"http://127.0.0.1:{os.getenv('BGUTIL_HTTP_SERVER_PORT', '4416')}"
 )
 
 
@@ -66,24 +76,41 @@ def _to_gcs_uri(url: str) -> str:
 
 def _yt_base_opts() -> dict:
     """
-    Common yt-dlp options. bgutil-ytdlp-pot-provider is a yt-dlp plugin that
-    auto-registers itself — no extra config needed here. It intercepts all
-    YouTube requests and injects valid PO tokens automatically.
+    Common yt-dlp options.
+    - Impersonates Chrome via curl_cffi to spoof TLS fingerprint.
+    - Forces the web player client so bgutil PO tokens are actually used.
+      (Android VR client doesn't use PO tokens → still gets bot-detected.)
+    - bgutil-ytdlp-pot-provider pip plugin auto-registers and injects PO tokens;
+      extractor_args tells it where our bgutil-pot HTTP server is.
     """
-    return {
+    opts: dict = {
         "quiet": False,
         "no_warnings": False,
         "socket_timeout": 60,
-        "retries": 8,
+        "retries": 3,
         "fragment_retries": 8,
         "http_headers": {
             "User-Agent": _CHROME_UA,
             "Accept-Language": "en-US,en;q=0.9",
         },
-        # Sleep between requests to appear human
-        "sleep_interval": 1,
-        "max_sleep_interval": 3,
+        "sleep_interval": 2,
+        "max_sleep_interval": 5,
+        # Force the web client — Android/TV clients skip PO token injection
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["web"],
+            },
+            # Tell bgutil-ytdlp-pot-provider where our bgutil-pot server lives
+            "getpot:bgutilhttp": {
+                "base_url": [_BGUTIL_BASE_URL],
+            },
+        },
     }
+    # Spoof Chrome TLS fingerprint via curl_cffi (bypasses TLS-based bot detection)
+    if _IMPERSONATE is not None:
+        opts["impersonate"] = _IMPERSONATE
+    return opts
+
 
 
 # ── Audio-only download ───────────────────────────────────────────────────────
