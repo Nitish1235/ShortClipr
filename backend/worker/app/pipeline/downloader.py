@@ -97,14 +97,16 @@ def _yt_base_opts() -> dict:
         "impersonate": "chrome",
         "extractor_args": {
             "youtube": {
-                # Pool of clients: mweb is best for PO tokens, followed by mobile clients.
-                "player_client": ["mweb", "ios", "android", "web"],
-                # Do NOT skip webpage/configs; we need them to fetch the Visitor Data (identity)
-                # that the PO Token provider binds to.
+                # 2026 Best Practice: Lock to mweb for most reliable PO token injection.
+                "player_client": ["mweb"],
+                # Do NOT skip webpage/configs; we need the Visitor ID for token binding.
             },
-            # Official identifier and key for the bgutil-pot-rs plugin in HTTP mode.
-            "youtubepot-bgutilhttp": {
+            # 2026 Standard dictionary format for the bgutil-pot plugin.
+            "youtubepot": {
+                "provider": "bgutil-http",
                 "base_url": _BGUTIL_BASE_URL,
+                "service": "mweb",       # Must match the youtube client above.
+                "always_update": True,   # Required for datacenter IPs to bypass SABR blocks.
             },
         },
     }

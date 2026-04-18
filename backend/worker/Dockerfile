@@ -44,11 +44,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-dejavu-core \
     fonts-liberation \
     fontconfig \
-    libcurl4 \
-    libssl3 \
+    libcurl4-openssl-dev \
+    libssl-dev \
     ca-certificates \
     && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
+
+# ── Force yt-dlp nightly and curl_cffi extra ──────────────────────────────────
+RUN . /opt/venv/bin/activate \
+    && pip install -U "yt-dlp[default,curl-cffi]" \
+    && yt-dlp --update-to nightly
 
 # ── bgutil-pot Rust binary (pre-downloaded, no network call needed) ───────────
 COPY ./binaries/bgutil-pot /usr/local/bin/bgutil-pot
@@ -59,9 +64,10 @@ COPY --from=builder /opt/venv /opt/venv
 
 # ── Sanity checks (run as root, guaranteed PATH) ──────────────────────────────
 RUN bgutil-pot --version \
-    && node --version \
+    && (node -v || nodejs -v) \
     && python -c "import yt_dlp; print('yt-dlp OK')" \
-    && python -c "import curl_cffi; print('curl_cffi OK')"
+    && python -c "import curl_cffi; print('curl_cffi OK')" \
+    && /opt/venv/bin/yt-dlp --list-impersonate-targets
 
 # ── Non-root user setup ───────────────────────────────────────────────────────
 RUN addgroup --system workergroup \

@@ -277,9 +277,21 @@ def _run_env_audit():
                 logger.info("[Audit] Found PO Token provider classes in yt-dlp")
             else:
                 logger.warning("[Audit] No PO Token provider classes found in yt-dlp plugin list")
-        except Exception:
-            pass
-            
+        # Check if impersonation targets (curl_cffi) are working
+        try:
+            import subprocess
+            res = subprocess.run(
+                ["/opt/venv/bin/yt-dlp", "--list-impersonate-targets"],
+                capture_output=True, text=True, check=True
+            )
+            targets = res.stdout.strip().split("\n")
+            if any("chrome" in t.lower() for t in targets):
+                logger.info("[Audit] Chrome impersonation target (curl_cffi) is AVAILABLE")
+            else:
+                logger.warning("[Audit] Chrome impersonation NOT FOUND in available targets")
+        except Exception as e:
+            logger.warning(f"[Audit] Failed to check impersonate targets: {e}")
+
     except Exception as e:
         logger.warning(f"[Audit] Failed environment check: {e}")
 
