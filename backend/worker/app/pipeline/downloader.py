@@ -94,11 +94,13 @@ def _yt_base_opts() -> dict:
         },
         "sleep_interval": 2,
         "max_sleep_interval": 5,
+        "impersonate": "chrome",
         "extractor_args": {
             "youtube": {
                 # Pool of clients: mweb is best for PO tokens, followed by mobile clients.
                 "player_client": ["mweb", "ios", "android", "web"],
-                "player_skip": ["webpage", "configs"],
+                # Do NOT skip webpage/configs; we need them to fetch the Visitor Data (identity)
+                # that the PO Token provider binds to.
             },
             # Official identifier and key for the bgutil-pot-rs plugin in HTTP mode.
             "youtubepot-bgutilhttp": {

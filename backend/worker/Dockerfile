@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     nodejs \
     libglib2.0-0 \
+    libnss3 \
     libsm6 \
     libxext6 \
     libxrender1 \
@@ -47,6 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
     && fc-cache -f \
+    && ln -s /usr/bin/nodejs /usr/bin/node \
     && rm -rf /var/lib/apt/lists/*
 
 # ── bgutil-pot Rust binary (pre-downloaded, no network call needed) ───────────
@@ -58,6 +60,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 # ── Sanity checks (run as root, guaranteed PATH) ──────────────────────────────
 RUN bgutil-pot --version \
+    && node --version \
     && python -c "import yt_dlp; print('yt-dlp OK')" \
     && python -c "import curl_cffi; print('curl_cffi OK')"
 

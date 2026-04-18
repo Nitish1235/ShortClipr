@@ -293,7 +293,7 @@ async def _wait_for_bgutil(timeout: int = 30) -> bool:
     or the PO token provider will fail silently and yt-dlp hits bot detection.
     """
     port = int(os.getenv("BGUTIL_HTTP_SERVER_PORT", "4416"))
-    url  = f"http://127.0.0.1:{port}/token"
+    url  = f"http://127.0.0.1:{port}/config"
     async with httpx.AsyncClient() as client:
         for i in range(timeout):
             try:
