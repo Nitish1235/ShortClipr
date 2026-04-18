@@ -75,10 +75,15 @@ def _yt_base_opts() -> dict:
       (Android VR client doesn't use PO tokens → still gets bot-detected.)
     - bgutil-ytdlp-pot-provider pip plugin auto-registers and injects PO tokens;
       extractor_args tells it where our bgutil-pot HTTP server is.
+    - ios client is tried first: no PO tokens needed, different rate-limit bucket,
+      works for public videos from datacenter IPs. web is kept as fallback so
+      bgutil kicks in if ios is unavailable for a specific video.
     """
+    verbose = os.getenv("YTDLP_VERBOSE", "").lower() == "true"
     return {
         "quiet": False,
         "no_warnings": False,
+        "verbose": verbose,   # set YTDLP_VERBOSE=true in Cloud Run to confirm bgutil plugin loads
         "socket_timeout": 60,
         "retries": 3,
         "fragment_retries": 8,
@@ -88,17 +93,21 @@ def _yt_base_opts() -> dict:
         },
         "sleep_interval": 2,
         "max_sleep_interval": 5,
-        # Force the web client — Android/TV clients skip PO token injection
         "extractor_args": {
             "youtube": {
-                "player_client": ["web"],
+                # ios first: no PO tokens needed, different rate-limit bucket,
+                # works for public videos from datacenter IPs.
+                # web fallback: uses bgutil PO tokens if the plugin is loaded.
+                "player_client": ["ios", "web"],
             },
-            # Tell bgutil-ytdlp-pot-provider where our bgutil-pot server lives
+            # Tells bgutil-ytdlp-pot-provider where our bgutil-pot HTTP server is.
+            # Harmless if the plugin isn't loaded — just ignored.
             "getpot:bgutilhttp": {
                 "base_url": [_BGUTIL_BASE_URL],
             },
         },
     }
+
 
 
 
