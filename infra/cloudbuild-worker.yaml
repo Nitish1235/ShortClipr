@@ -11,16 +11,40 @@ steps:
   # ── Build ──────────────────────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
     id: build-worker
+    env:
+      - 'DOCKER_BUILDKIT=1'
     args:
       - build
       - --cache-from
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-worker:latest'
+      - --cache-from
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-worker:builder'
       - -t
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-worker:$COMMIT_SHA'
       - -t
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-worker:latest'
       - --build-arg
       - BUILDKIT_INLINE_CACHE=1
+      - --target
+      - runtime
+      - backend/worker
+    waitFor: [fetch-bgutil]
+
+  # ── Push builder stage cache (so pip install is cached next run) ───────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-builder-cache
+    env:
+      - 'DOCKER_BUILDKIT=1'
+    args:
+      - build
+      - --cache-from
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-worker:builder'
+      - -t
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-worker:builder'
+      - --build-arg
+      - BUILDKIT_INLINE_CACHE=1
+      - --target
+      - builder
       - backend/worker
     waitFor: [fetch-bgutil]
 
@@ -31,7 +55,7 @@ steps:
       - push
       - '--all-tags'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/shortclipr/shortclipr-worker'
-    waitFor: [build-worker]
+    waitFor: [build-worker, push-builder-cache]
 
   # ── Deploy to Cloud Run ────────────────────────────────────────────────────
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
