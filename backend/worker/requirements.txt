@@ -1,7 +1,7 @@
 google-cloud-storage==2.16.0
 httpx==0.27.0
 asyncpg==0.29.0
-yt-dlp>=2025.1.26
+yt-dlp>=2025.05.22
 curl_cffi>=0.7.0
 bgutil-ytdlp-pot-provider
 openai==1.30.1

@@ -260,6 +260,30 @@ async def _process_job(job: dict, redis_client: httpx.AsyncClient) -> None:
             )
 
 
+# ── environment audit ──────────────────────────────────────────────────────────
+def _run_env_audit():
+    """Logs the yt-dlp version and checks for registered PO Token providers."""
+    try:
+        import yt_dlp
+        logger.info(f"[Audit] yt-dlp version: {yt_dlp.version.__version__}")
+        
+        # Check if the bgutil plugin is loaded into the extractor list
+        from yt_dlp.extractor.youtube import YoutubeIE
+        # Note: We look for identifiers in the extractor classes
+        try:
+            from yt_dlp.extractor import _ALL_CLASSES
+            classes = [c.__name__ for c in _ALL_CLASSES]
+            if "YoutubePOTProviderIE" in classes or any("POT" in c for c in classes):
+                logger.info("[Audit] Found PO Token provider classes in yt-dlp")
+            else:
+                logger.warning("[Audit] No PO Token provider classes found in yt-dlp plugin list")
+        except Exception:
+            pass
+            
+    except Exception as e:
+        logger.warning(f"[Audit] Failed environment check: {e}")
+
+
 # ── bgutil-pot readiness check ───────────────────────────────────────────────
 async def _wait_for_bgutil(timeout: int = 30) -> bool:
     """
@@ -289,6 +313,9 @@ async def worker_loop() -> None:
     # Initialise DB pool on startup
     await _get_pool()
     logger.info(f"Worker started. Polling {REDIS_JOB_QUEUE} natively balancing between min {MIN_POLL_INTERVAL_SEC}s and max {MAX_POLL_INTERVAL_SEC}s")
+
+    # Audit the environment for yt-dlp and plugins
+    _run_env_audit()
 
     # Wait for bgutil-pot before processing any YouTube jobs
     await _wait_for_bgutil()

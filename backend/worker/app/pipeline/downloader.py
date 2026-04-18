@@ -83,7 +83,9 @@ def _yt_base_opts() -> dict:
     return {
         "quiet": False,
         "no_warnings": False,
-        "verbose": verbose,   # set YTDLP_VERBOSE=true in Cloud Run to confirm bgutil plugin loads
+        "verbose": True,      # Hardcoded for absolute visibility in Cloud Run
+        "no_color": True,      # Cleaner machine-readable logs
+        "nocheckcertificate": True,
         "socket_timeout": 60,
         "retries": 3,
         "fragment_retries": 8,
@@ -94,16 +96,17 @@ def _yt_base_opts() -> dict:
         "max_sleep_interval": 5,
         "extractor_args": {
             "youtube": {
-                # Pool of clients: ios and android are more resistant to datacenter bans.
-                # web fallback: specifically uses bgutil PO tokens.
-                "player_client": ["ios", "android", "web"],
+                # Pool of clients: mweb is best for PO tokens, followed by mobile clients.
+                "player_client": ["mweb", "ios", "android", "web"],
+                "player_skip": ["webpage", "configs"],
             },
-            # Tells bgutil-ytdlp-pot-provider where our bgutil-pot HTTP server is.
+            # Official identifier and key for the bgutil-pot-rs plugin in HTTP mode.
             "youtubepot-bgutilhttp": {
                 "base_url": _BGUTIL_BASE_URL,
             },
         },
     }
+
 
 
 
