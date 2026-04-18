@@ -48,7 +48,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     ca-certificates \
     && fc-cache -f \
-    && ln -sf /usr/bin/nodejs /usr/bin/node \
     && rm -rf /var/lib/apt/lists/*
 
 # ── bgutil-pot Rust binary (pre-downloaded, no network call needed) ───────────
