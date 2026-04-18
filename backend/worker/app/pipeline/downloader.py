@@ -88,24 +88,23 @@ def _yt_base_opts() -> dict:
         "retries": 3,
         "fragment_retries": 8,
         "http_headers": {
-            "User-Agent": _CHROME_UA,
             "Accept-Language": "en-US,en;q=0.9",
         },
         "sleep_interval": 2,
         "max_sleep_interval": 5,
         "extractor_args": {
             "youtube": {
-                # ios first: no PO tokens needed, different rate-limit bucket,
-                # works for public videos from datacenter IPs.
-                # web fallback: uses bgutil PO tokens if the plugin is loaded.
-                "player_client": ["ios", "web"],
+                # Pool of clients: ios and android are more resistant to datacenter bans.
+                # web fallback: specifically uses bgutil PO tokens.
+                "player_client": ["ios", "android", "web"],
             },
             # Tells bgutil-ytdlp-pot-provider where our bgutil-pot HTTP server is.
-            "getpot": {
-                "bgutilhttp_base_url": [_BGUTIL_BASE_URL],
+            "youtubepot-bgutilhttp": {
+                "base_url": _BGUTIL_BASE_URL,
             },
         },
     }
+
 
 
 
