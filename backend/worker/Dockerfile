@@ -25,59 +25,71 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PATH="/opt/venv/bin:$PATH" \
+    PATH="/opt/venv/bin:/usr/local/bin:$PATH" \
     GLOG_minloglevel=2 \
     TF_CPP_MIN_LOG_LEVEL=3 \
     BGUTIL_HTTP_SERVER_PORT=4416
 
-# ── System deps: FFmpeg, OpenCV, MediaPipe, fonts, yt-dlp runtime ────────────
+# ── System deps ───────────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # FFmpeg (video processing core)
+    curl \
+    gnupg \
     ffmpeg \
-    # OpenCV headless runtime libs
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender1 \
     libgl1 \
-    # Font stack for FFmpeg drawtext
     fonts-dejavu-core \
     fonts-liberation \
     fontconfig \
-    # yt-dlp needs these for merging streams
     python3-pip \
-    # Node.js — required by yt-dlp to solve YouTube's n-challenge (JS encryption)
-    # Without this, yt-dlp cannot decrypt stream URLs and downloads fail silently
-    nodejs \
-    npm \
-    # curl_cffi runtime deps — required for yt-dlp --impersonate chrome TLS spoofing
     libcurl4 \
     libssl3 \
     ca-certificates \
     && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy installed Python packages from builder
+# ── Node.js 20 LTS via NodeSource ────────────────────────────────────────────
+# Debian's apt repo ships nodejs v12 — yt-dlp requires v18+ for JS challenge solving.
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && node --version \
+    && npm --version
+
+# ── bgutil JS server (npm) ────────────────────────────────────────────────────
+# Installs the Node.js server that generates YouTube PO tokens.
+# The pip package (bgutil-ytdlp-pot-provider in requirements.txt) is the yt-dlp
+# plugin that talks to this server. Both are required.
+#   - npm package → runs the HTTP server on port 4416
+#   - pip package → registers as yt-dlp plugin, calls the server for PO tokens
+RUN npm install -g bgutil-ytdlp-pot-provider \
+    && echo "bgutil installed at: $(npm root -g)/bgutil-ytdlp-pot-provider"
+
+# ── Python venv from builder ──────────────────────────────────────────────────
 COPY --from=builder /opt/venv /opt/venv
 
-# Install bgutil PO token server (must run as root before USER switch).
-# bgutil-ytdlp-pot-provider is a Node.js server that generates YouTube
-# Proof-of-Origin tokens, enabling yt-dlp to bypass datacenter IP bot detection.
-RUN npm install -g bgutil-ytdlp-pot-provider 2>&1 | tail -5
-
-# Create non-root user
+# ── Non-root user setup ───────────────────────────────────────────────────────
 RUN addgroup --system workergroup && adduser --system --ingroup workergroup workeruser
 
-# Scratch dirs — owned by workeruser
+# Scratch dirs for yt-dlp and temp files
 RUN mkdir -p /tmp/shortclipr /tmp/yt-dlp-cache \
     && chown -R workeruser:workergroup /tmp/shortclipr /tmp/yt-dlp-cache
 
+# Copy app + startup script
 COPY ./app /app/app
+COPY ./start.sh /app/start.sh
 
-# Allow workeruser to write yt-dlp plugin cache
-RUN chown -R workeruser:workergroup /app
+# Make startup script executable and fix ownership
+RUN chmod +x /app/start.sh \
+    && chown -R workeruser:workergroup /app
+
+# Expose npm global bin to workeruser (Node 20 installs to /usr/local/bin)
+RUN ls /usr/local/lib/node_modules/bgutil-ytdlp-pot-provider/build/server.js \
+    && echo "bgutil server.js verified"
 
 USER workeruser
 
-# Worker is a continuous polling loop — no HTTP port needed
-CMD ["python", "-u", "app/main.py"]
+# Use start.sh as entrypoint — boots bgutil server then launches Python worker
+CMD ["/bin/bash", "/app/start.sh"]
