@@ -1,4 +1,13 @@
 steps:
+  # ── Fetch bgutil-pot binary (git-ignored, must be downloaded before build) ──
+  - name: 'gcr.io/cloud-builders/curl'
+    id: fetch-bgutil
+    args:
+      - -fsSL
+      - 'https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/latest/download/bgutil-pot-linux-x86_64'
+      - -o
+      - 'backend/worker/binaries/bgutil-pot'
+
   # ── Build ──────────────────────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
     id: build-worker
@@ -13,6 +22,7 @@ steps:
       - --build-arg
       - BUILDKIT_INLINE_CACHE=1
       - backend/worker
+    waitFor: [fetch-bgutil]
 
   # ── Push ───────────────────────────────────────────────────────────────────
   - name: 'gcr.io/cloud-builders/docker'
