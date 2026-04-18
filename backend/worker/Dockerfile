@@ -51,21 +51,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Node.js 20 LTS via NodeSource ────────────────────────────────────────────
-# Debian's apt repo ships nodejs v12 — yt-dlp requires v18+ for JS challenge solving.
+# Debian's apt repo ships an old node — yt-dlp requires v18+ for JS challenge solving.
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/* \
     && node --version \
     && npm --version
 
-# ── bgutil JS server (npm) ────────────────────────────────────────────────────
-# Installs the Node.js server that generates YouTube PO tokens.
-# The pip package (bgutil-ytdlp-pot-provider in requirements.txt) is the yt-dlp
-# plugin that talks to this server. Both are required.
-#   - npm package → runs the HTTP server on port 4416
-#   - pip package → registers as yt-dlp plugin, calls the server for PO tokens
-RUN npm install -g bgutil-ytdlp-pot-provider \
-    && echo "bgutil installed at: $(npm root -g)/bgutil-ytdlp-pot-provider"
+# ── bgutil npm server ─────────────────────────────────────────────────────────
+# @imputnet/bgutil-ytdlp-pot-provider-server — the Node.js HTTP server that
+# solves BotGuard challenges and generates YouTube PO tokens on port 4416.
+# The pip package (bgutil-ytdlp-pot-provider in requirements.txt) is the
+# yt-dlp plugin that calls this server to inject tokens automatically.
+RUN npm install -g @imputnet/bgutil-ytdlp-pot-provider-server \
+    && echo "bgutil installed at: $(npm root -g)/@imputnet/bgutil-ytdlp-pot-provider-server" \
+    && node -e "require('@imputnet/bgutil-ytdlp-pot-provider-server'); console.log('bgutil node module OK')"
 
 # ── Python venv from builder ──────────────────────────────────────────────────
 COPY --from=builder /opt/venv /opt/venv
@@ -81,15 +81,14 @@ RUN mkdir -p /tmp/shortclipr /tmp/yt-dlp-cache \
 COPY ./app /app/app
 COPY ./start.sh /app/start.sh
 
-# Make startup script executable and fix ownership
 RUN chmod +x /app/start.sh \
     && chown -R workeruser:workergroup /app
 
-# Expose npm global bin to workeruser (Node 20 installs to /usr/local/bin)
-RUN ls /usr/local/lib/node_modules/bgutil-ytdlp-pot-provider/build/server.js \
-    && echo "bgutil server.js verified"
-
 USER workeruser
 
-# Use start.sh as entrypoint — boots bgutil server then launches Python worker
+# Sanity checks — fail the build early if something is missing
+RUN node --version \
+    && node -e "require('@imputnet/bgutil-ytdlp-pot-provider-server'); console.log('bgutil module verified')" \
+    && python -c "import yt_dlp; print('yt-dlp OK')"
+
 CMD ["/bin/bash", "/app/start.sh"]
