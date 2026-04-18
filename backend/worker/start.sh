@@ -1,34 +1,24 @@
 #!/bin/bash
 # start.sh — Container entrypoint
-# 1. Starts bgutil-pot Rust server in background (generates YouTube PO tokens)
-# 2. Waits for it to be ready on port 4416
-# 3. Launches the Python worker
+#
+# Strategy: start bgutil-pot fire-and-forget, then exec Python immediately.
+# Cloud Run's startup probe checks $PORT (8080) from second 1 — we must not
+# block that port. Python's health server is up in ~2-3s which is well within
+# the 4-minute probe window. bgutil-pot will be ready long before any job runs.
 
 set -e
 
-PORT="${BGUTIL_HTTP_SERVER_PORT:-4416}"
+echo "=== ShortClipr Worker Starting ==="
 
-echo "=== Starting bgutil-pot PO token server ==="
-
-if ! command -v bgutil-pot &>/dev/null; then
-    echo "WARNING: bgutil-pot binary not found — continuing without PO tokens"
+# ── bgutil-pot PO token server (background, non-blocking) ────────────────────
+if [ -f "/usr/local/bin/bgutil-pot" ]; then
+    /usr/local/bin/bgutil-pot server --host 127.0.0.1 --port "${BGUTIL_HTTP_SERVER_PORT:-4416}" &
+    echo "bgutil-pot started in background (PID $!)"
 else
-    bgutil-pot server --host 127.0.0.1 --port "$PORT" &
-    BGUTIL_PID=$!
-    echo "bgutil-pot started (PID $BGUTIL_PID)"
-
-    # Wait up to 30s for the server to respond
-    for i in $(seq 1 30); do
-        if curl -sf "http://127.0.0.1:${PORT}/token" > /dev/null 2>&1; then
-            echo "bgutil-pot ready after ${i}s"
-            break
-        fi
-        if [ "$i" -eq 30 ]; then
-            echo "WARNING: bgutil-pot did not respond in 30s — continuing anyway"
-        fi
-        sleep 1
-    done
+    echo "WARNING: bgutil-pot not found — YouTube PO tokens disabled"
 fi
 
-echo "=== Starting ShortClipr worker ==="
+# ── Hand off to Python immediately ───────────────────────────────────────────
+# Health server inside main.py binds $PORT within seconds → probe passes.
+echo "=== Starting Python worker ==="
 exec python -u app/main.py
