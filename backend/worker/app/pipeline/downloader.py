@@ -134,13 +134,14 @@ def _yt_base_opts() -> dict:
         "max_sleep_interval": 5,
         "extractor_args": {
             "youtube": {
+                # Lists of strings — the canonical yt-dlp extractor_args format
                 "player_client": ["web", "mweb", "android"],
             },
-            # Correct key for the bgutil-http PO Token provider
+            # Correct key for the bgutil-http PO Token provider.
+            # Values MUST be lists of strings — yt-dlp parses extractor_args this way
+            # even in the Python API. A raw string or bool causes the URL to be lost.
             "youtubepot-bgutilhttp": {
-                "base_url": _BGUTIL_BASE_URL,
-                "service": "web",
-                "always_update": True,
+                "base_url": [_BGUTIL_BASE_URL],
             },
         },
     }

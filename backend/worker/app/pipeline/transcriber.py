@@ -45,6 +45,17 @@ async def transcribe(audio_path: str) -> dict:
         return await _transcribe_chunked(audio_path)
 
 
+def _parse_word(w) -> dict:
+    """
+    Handle OpenAI SDK word format changes:
+    - Older SDK versions return objects with attributes: w.word, w.start, w.end
+    - Newer SDK versions return plain dicts:            w["word"], w["start"], w["end"]
+    """
+    if isinstance(w, dict):
+        return {"word": w["word"].strip(), "start": w["start"], "end": w["end"]}
+    return {"word": w.word.strip(), "start": w.start, "end": w.end}
+
+
 async def _transcribe_single(audio_path: str) -> dict:
     """Transcribe a single audio file under the 25MB Whisper limit."""
     with open(audio_path, "rb") as f:
@@ -57,10 +68,7 @@ async def _transcribe_single(audio_path: str) -> dict:
 
     words = []
     if hasattr(response, "words") and response.words:
-        words = [
-            {"word": w.word.strip(), "start": w.start, "end": w.end}
-            for w in response.words
-        ]
+        words = [_parse_word(w) for w in response.words]
 
     logger.info(f"Transcription complete: {len(response.text.split())} words, {len(words)} word timestamps")
     return {"text": response.text, "words": words}
