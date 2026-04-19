@@ -171,7 +171,8 @@ def _download_audio_sync(youtube_url: str, output_path: str) -> str:
         "format": "bestaudio[ext=m4a]/bestaudio/best",
         # Use a predictable output template so we can find the file reliably
         "outtmpl": output_path,
-        "postprocessors": [{\n            # MP3 @ 128kbps — ~10x smaller than WAV, identical quality for Whisper.
+        "postprocessors": [{
+            # MP3 @ 128kbps — ~10x smaller than WAV, identical quality for Whisper.
             # A 3.9-min audio becomes ~3.7MB (vs ~40MB WAV), avoiding chunking entirely.
             "key": "FFmpegExtractAudio",
             "preferredcodec": "mp3",
