@@ -294,6 +294,9 @@ def _run_env_audit():
                 logger.info("[Audit] Found PO Token provider classes in yt-dlp")
             else:
                 logger.warning("[Audit] No PO Token provider classes found in yt-dlp plugin list")
+        except Exception as e:
+            logger.warning(f"[Audit] Failed to check extractor classes: {e}")
+
         # Check if impersonation targets (curl_cffi) are working
         try:
             import subprocess
@@ -310,7 +313,7 @@ def _run_env_audit():
             logger.warning(f"[Audit] Failed to check impersonate targets: {e}")
 
     except Exception as e:
-        logger.warning(f"[Audit] Failed environment check: {e}")
+        logger.warning(f"[Audit] Failed main environment audit: {e}")
 
 
 # ── bgutil-pot readiness check ───────────────────────────────────────────────
