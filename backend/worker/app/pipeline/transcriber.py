@@ -84,7 +84,7 @@ async def _transcribe_chunked(audio_path: str) -> dict:
     logger.info("Audio file exceeds 25MB — chunking into 10-minute segments.")
     chunk_dir = os.path.join(os.path.dirname(audio_path), "chunks")
     os.makedirs(chunk_dir, exist_ok=True)
-    chunk_pattern = os.path.join(chunk_dir, "chunk_%03d.wav")
+    chunk_pattern = os.path.join(chunk_dir, "chunk_%03d.mp3")
 
     def _split():
         (
@@ -94,7 +94,8 @@ async def _transcribe_chunked(audio_path: str) -> dict:
                 chunk_pattern,
                 segment_time=600,   # 10 minutes per chunk
                 f="segment",
-                acodec="pcm_s16le",
+                acodec="libmp3lame",
+                audio_bitrate="128k",
                 ar=16000,
                 ac=1,
             )
@@ -108,7 +109,7 @@ async def _transcribe_chunked(audio_path: str) -> dict:
     chunk_files = sorted([
         os.path.join(chunk_dir, f)
         for f in os.listdir(chunk_dir)
-        if f.startswith("chunk_") and f.endswith(".wav")
+        if f.startswith("chunk_") and f.endswith(".mp3")
     ])
 
     all_words:       list[dict] = []

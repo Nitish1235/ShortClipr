@@ -171,30 +171,30 @@ def _download_audio_sync(youtube_url: str, output_path: str) -> str:
         "format": "bestaudio[ext=m4a]/bestaudio/best",
         # Use a predictable output template so we can find the file reliably
         "outtmpl": output_path,
-        "postprocessors": [{
-            # Convert to 16kHz mono WAV — Whisper's native format
+        "postprocessors": [{\n            # MP3 @ 128kbps — ~10x smaller than WAV, identical quality for Whisper.
+            # A 3.9-min audio becomes ~3.7MB (vs ~40MB WAV), avoiding chunking entirely.
             "key": "FFmpegExtractAudio",
-            "preferredcodec": "wav",
-            "preferredquality": "0",
+            "preferredcodec": "mp3",
+            "preferredquality": "128",
         }],
     })
 
     with yt_dlp.YoutubeDL(opts) as ydl:
         ydl.download([youtube_url])
 
-    # yt-dlp replaces the extension of outtmpl with .wav after postprocessing.
-    # e.g. /tmp/.../audio.m4a → /tmp/.../audio.wav
+    # yt-dlp replaces the extension of outtmpl with .mp3 after postprocessing.
+    # e.g. /tmp/.../audio.m4a → /tmp/.../audio.mp3
     base_dir = os.path.dirname(output_path)
     stem     = os.path.splitext(os.path.basename(output_path))[0]
 
     # Primary: exact expected path
-    wav_path = os.path.join(base_dir, f"{stem}.wav")
-    if os.path.exists(wav_path):
-        return wav_path
+    mp3_path = os.path.join(base_dir, f"{stem}.mp3")
+    if os.path.exists(mp3_path):
+        return mp3_path
 
     # Fallback: any audio file in the working dir
     for fname in sorted(os.listdir(base_dir)):
-        if fname.endswith((".wav", ".m4a", ".mp3", ".webm", ".opus")):
+        if fname.endswith((".mp3", ".m4a", ".wav", ".webm", ".opus")):
             fpath = os.path.join(base_dir, fname)
             logger.info(f"Audio fallback resolved: {fpath}")
             return fpath
