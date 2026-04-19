@@ -51,6 +51,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
 
+# ── Python venv from builder ──────────────────────────────────────────────────
+COPY --from=builder /opt/venv /opt/venv
+
 # ── Force yt-dlp nightly and curl_cffi extra ──────────────────────────────────
 RUN . /opt/venv/bin/activate \
     && pip install -U "yt-dlp[default,curl-cffi]" \
@@ -59,9 +62,6 @@ RUN . /opt/venv/bin/activate \
 # ── bgutil-pot Rust binary (pre-downloaded, no network call needed) ───────────
 COPY ./binaries/bgutil-pot /usr/local/bin/bgutil-pot
 RUN chmod +x /usr/local/bin/bgutil-pot
-
-# ── Python venv from builder ──────────────────────────────────────────────────
-COPY --from=builder /opt/venv /opt/venv
 
 # ── Sanity checks (run as root, guaranteed PATH) ──────────────────────────────
 RUN bgutil-pot --version \
