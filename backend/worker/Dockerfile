@@ -59,6 +59,10 @@ COPY --from=builder /opt/venv /opt/venv
 RUN . /opt/venv/bin/activate \
     && pip install -U "yt-dlp[default,curl-cffi]"
 
+# ── Copy application source ───────────────────────────────────────────────────
+COPY ./app /app/app
+COPY ./start.sh /app/start.sh
+
 # ── bgutil-pot Rust binary (pre-downloaded, no network call needed) ───────────
 COPY ./binaries/bgutil-pot /usr/local/bin/bgutil-pot
 RUN chmod +x /usr/local/bin/bgutil-pot
@@ -79,9 +83,6 @@ RUN addgroup --system workergroup \
 
 RUN mkdir -p /tmp/shortclipr /tmp/yt-dlp-cache \
     && chown -R workeruser:workergroup /tmp/shortclipr /tmp/yt-dlp-cache
-
-COPY ./app /app/app
-COPY ./start.sh /app/start.sh
 
 RUN chmod +x /app/start.sh \
     && chown -R workeruser:workergroup /app /opt/venv
