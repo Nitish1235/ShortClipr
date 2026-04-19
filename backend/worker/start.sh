@@ -10,9 +10,13 @@ set -e
 
 echo "=== ShortClipr Worker Starting ==="
 
-# We update on every boot so we don't need to rebuild the image for YouTube changes.
-echo "Checking for yt-dlp updates..."
-/opt/venv/bin/pip install -U --no-cache-dir "yt-dlp[default,curl-cffi]" || echo "yt-dlp update skipped/failed (non-fatal)"
+# ── Ensure yt-dlp is fresh (background) ───────────────────────
+# We update in the background so we don't block the Cloud Run health check.
+(
+    echo "Background task: Checking for yt-dlp updates..."
+    /opt/venv/bin/pip install -U --no-cache-dir "yt-dlp[default,curl-cffi]" > /dev/null 2>&1 || true
+    echo "Background task: yt-dlp update check finished"
+) &
 
 # ── bgutil-pot PO token server (background, non-blocking) ────────────────────
 if [ -f "/usr/local/bin/bgutil-pot" ]; then

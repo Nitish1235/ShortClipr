@@ -80,7 +80,7 @@ COPY ./app /app/app
 COPY ./start.sh /app/start.sh
 
 RUN chmod +x /app/start.sh \
-    && chown -R workeruser:workergroup /app
+    && chown -R workeruser:workergroup /app /opt/venv
 
 USER workeruser
 
