@@ -56,8 +56,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 # ── Force yt-dlp nightly and curl_cffi extra ──────────────────────────────────
 RUN . /opt/venv/bin/activate \
-    && pip install -U "yt-dlp[default,curl-cffi]" \
-    && yt-dlp --update-to nightly
+    && pip install -U "yt-dlp[default,curl-cffi]"
 
 # ── bgutil-pot Rust binary (pre-downloaded, no network call needed) ───────────
 COPY ./binaries/bgutil-pot /usr/local/bin/bgutil-pot

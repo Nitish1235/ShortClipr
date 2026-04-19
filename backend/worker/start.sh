@@ -10,10 +10,9 @@ set -e
 
 echo "=== ShortClipr Worker Starting ==="
 
-# ── Ensure yt-dlp is fresh (nightly extraction fixes) ───────────────────────
 # We update on every boot so we don't need to rebuild the image for YouTube changes.
-echo "Checking for yt-dlp nightly updates..."
-/opt/venv/bin/yt-dlp --update-to nightly || echo "yt-dlp update skipped/failed (non-fatal)"
+echo "Checking for yt-dlp updates..."
+/opt/venv/bin/pip install -U --no-cache-dir "yt-dlp[default,curl-cffi]" || echo "yt-dlp update skipped/failed (non-fatal)"
 
 # ── bgutil-pot PO token server (background, non-blocking) ────────────────────
 if [ -f "/usr/local/bin/bgutil-pot" ]; then
