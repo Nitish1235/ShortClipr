@@ -66,6 +66,7 @@ RUN chmod +x /usr/local/bin/bgutil-pot
 # ── Sanity checks (run as root, guaranteed PATH) ──────────────────────────────
 RUN bgutil-pot --version \
     && deno --version \
+    && python -m py_compile /app/app/main.py \
     && python -c "import yt_dlp; print('yt-dlp OK')" \
     && python -c "import cv2; print('opencv OK')" \
     && python -c "import mediapipe; print('mediapipe OK')" \

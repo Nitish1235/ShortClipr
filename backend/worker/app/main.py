@@ -1,6 +1,11 @@
+import os
+import sys
 import threading
+import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+# ── Health server starts FIRST — always — so Cloud Run startup probe passes
+# regardless of secret availability or any downstream errors.
 def _run_dummy_server():
     """Cloud Run requires listening on $PORT for health checks ASAP."""
     class HealthHandler(BaseHTTPRequestHandler):
@@ -16,23 +21,19 @@ def _run_dummy_server():
         server = HTTPServer(("0.0.0.0", port), HealthHandler)
         server.serve_forever()
     except Exception as e:
-        print(f"Health server failed: {e}")
+        print(f"Health server failed: {e}", file=sys.stderr)
 
-# ── Health server starts FIRST — always — so Cloud Run startup probe passes
-# regardless of secret availability or any downstream errors.
 threading.Thread(target=_run_dummy_server, daemon=True, name="health-server").start()
-print(f"Health server bootstrapping on port {os.environ.get('PORT', 8080)}")
+print(f"Health server bootstrapping on port {os.environ.get('PORT', 8080)}", flush=True)
 
+# ── Heavy ML Imports (Post-Healthboot) ────────────────────────────────────────
 from pipeline import orchestrator
 
 import asyncio
 import asyncpg
 import httpx
 import json
-import logging
-import os
 import signal
-import sys
 from datetime import datetime, timezone
 
 # ── Structured logging ────────────────────────────────────────────────────────
