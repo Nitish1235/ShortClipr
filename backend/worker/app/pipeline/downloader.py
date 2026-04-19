@@ -32,11 +32,6 @@ logger = logging.getLogger(__name__)
 GCP_PROJECT_ID  = os.getenv("GCP_PROJECT_ID")
 _storage_client = None
 
-_CHROME_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/130.0.0.0 Safari/537.36"
-)
 
 _BGUTIL_BASE_URL = (
     f"http://127.0.0.1:{os.getenv('BGUTIL_HTTP_SERVER_PORT', '4416')}"
@@ -49,6 +44,8 @@ def _get_storage_client() -> storage.Client:
         _storage_client = storage.Client(project=GCP_PROJECT_ID)
     return _storage_client
 
+
+from yt_dlp.networking.impersonate import ImpersonateTarget
 
 # ── URL normalisation ─────────────────────────────────────────────────────────
 
@@ -91,11 +88,10 @@ def _yt_base_opts() -> dict:
         "fragment_retries": 8,
         "http_headers": {
             "Accept-Language": "en-US,en;q=0.9",
-            "User-Agent": _CHROME_UA,
         },
         "sleep_interval": 2,
         "max_sleep_interval": 5,
-        "impersonate": "chrome",
+        "impersonate": ImpersonateTarget.from_str("chrome"),
         "extractor_args": {
             "youtube": {
                 # 2026 Best Practice: Using web, mweb, android for maximum reliability and cookie support.
