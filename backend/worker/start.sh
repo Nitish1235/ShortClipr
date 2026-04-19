@@ -10,6 +10,11 @@ set -e
 
 echo "=== ShortClipr Worker Starting ==="
 
+# ── Ensure yt-dlp is fresh (nightly extraction fixes) ───────────────────────
+# We update on every boot so we don't need to rebuild the image for YouTube changes.
+echo "Checking for yt-dlp nightly updates..."
+/opt/venv/bin/yt-dlp --update-to nightly || echo "yt-dlp update skipped/failed (non-fatal)"
+
 # ── bgutil-pot PO token server (background, non-blocking) ────────────────────
 if [ -f "/usr/local/bin/bgutil-pot" ]; then
     /usr/local/bin/bgutil-pot server --host 127.0.0.1 --port "${BGUTIL_HTTP_SERVER_PORT:-4416}" &

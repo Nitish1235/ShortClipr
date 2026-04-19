@@ -34,7 +34,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ffmpeg \
-    nodejs \
+    unzip \
     libglib2.0-0 \
     libnss3 \
     libsm6 \
@@ -47,6 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4-openssl-dev \
     libssl-dev \
     ca-certificates \
+    && curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh \
     && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
 
@@ -64,7 +65,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 # ── Sanity checks (run as root, guaranteed PATH) ──────────────────────────────
 RUN bgutil-pot --version \
-    && (node -v || nodejs -v) \
+    && deno --version \
     && python -c "import yt_dlp; print('yt-dlp OK')" \
     && python -c "import curl_cffi; print('curl_cffi OK')" \
     && /opt/venv/bin/yt-dlp --list-impersonate-targets

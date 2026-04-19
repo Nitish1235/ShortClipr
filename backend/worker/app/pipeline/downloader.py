@@ -80,7 +80,7 @@ def _yt_base_opts() -> dict:
       bgutil kicks in if ios is unavailable for a specific video.
     """
     verbose = os.getenv("YTDLP_VERBOSE", "").lower() == "true"
-    return {
+    opts = {
         "quiet": False,
         "no_warnings": False,
         "verbose": True,      # Hardcoded for absolute visibility in Cloud Run
@@ -91,25 +91,34 @@ def _yt_base_opts() -> dict:
         "fragment_retries": 8,
         "http_headers": {
             "Accept-Language": "en-US,en;q=0.9",
+            "User-Agent": _CHROME_UA,
         },
         "sleep_interval": 2,
         "max_sleep_interval": 5,
         "impersonate": "chrome",
         "extractor_args": {
             "youtube": {
-                # 2026 Best Practice: Lock to mweb for most reliable PO token injection.
-                "player_client": ["mweb"],
+                # 2026 Best Practice: Using web, mweb, android for maximum reliability and cookie support.
+                "player_client": ["web", "mweb", "android"],
                 # Do NOT skip webpage/configs; we need the Visitor ID for token binding.
             },
             # 2026 Standard dictionary format for the bgutil-pot plugin.
             "youtubepot": {
                 "provider": "bgutil-http",
                 "base_url": _BGUTIL_BASE_URL,
-                "service": "mweb",       # Must match the youtube client above.
+                "service": "web",       # Match the primary youtube client.
                 "always_update": True,   # Required for datacenter IPs to bypass SABR blocks.
             },
         },
     }
+
+    # Robustness: Use cookies.txt if the user uploads it (e.g. from the robots.txt trick)
+    cookie_file = "/app/cookies.txt"
+    if os.path.exists(cookie_file):
+        logger.info(f"Found {cookie_file} — using cookies for YouTube")
+        opts["cookiefile"] = cookie_file
+
+    return opts
 
 
 
