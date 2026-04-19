@@ -64,29 +64,71 @@ def _to_gcs_uri(url: str) -> str:
 
 # ── yt-dlp base options ───────────────────────────────────────────────────────
 
+
+# ── Cookie resolution (mounted secret or env var) ─────────────────────────────
+
+# Cloud Run Secret Manager can mount secrets as files or inject as env vars.
+# We support both patterns so the operator can choose the easiest approach.
+
+_COOKIE_PATH = "/tmp/shortclipr_yt_cookies.txt"   # where we write the resolved cookie file
+
+def _resolve_cookie_file() -> str | None:
+    """
+    Resolve a YouTube cookies.txt file from one of two sources (in priority order):
+
+    1. YOUTUBE_COOKIES_FILE  — path to a mounted secret file (e.g. Cloud Run secret volume).
+    2. YOUTUBE_COOKIES       — base64-encoded Netscape cookies.txt content injected as env var.
+
+    Returns the path to the cookie file to pass to yt-dlp, or None if no cookies.
+
+    How to export cookies (official yt-dlp recommendation):
+      1. Open a private/incognito Chrome window and log into YouTube.
+      2. Visit https://www.youtube.com/robots.txt in the SAME tab.
+      3. Use "Get cookies.txt LOCALLY" Chrome extension to export youtube.com cookies.
+      4. Close the private window immediately (prevents session rotation).
+      5. base64-encode the file: base64 cookies.txt | tr -d '\\n'
+      6. Add to Cloud Run as secret env var YOUTUBE_COOKIES.
+    """
+
+    # Source 1: mounted file (highest precedence)
+    file_path = os.getenv("YOUTUBE_COOKIES_FILE", "/app/cookies.txt")
+    if os.path.isfile(file_path) and os.path.getsize(file_path) > 0:
+        logger.info(f"[cookies] Using mounted cookie file: {file_path}")
+        return file_path
+
+    # Source 2: base64-encoded env var (Cloud Run secret)
+    b64_cookies = os.getenv("YOUTUBE_COOKIES", "").strip()
+    if b64_cookies:
+        try:
+            import base64
+            cookie_bytes = base64.b64decode(b64_cookies)
+            with open(_COOKIE_PATH, "wb") as f:
+                f.write(cookie_bytes)
+            logger.info(f"[cookies] Decoded YOUTUBE_COOKIES env var → {_COOKIE_PATH}")
+            return _COOKIE_PATH
+        except Exception as e:
+            logger.warning(f"[cookies] Failed to decode YOUTUBE_COOKIES env var: {e}")
+
+    logger.info("[cookies] No cookie source found — running cookie-free (may hit bot detection)")
+    return None
+
+
 def _yt_base_opts() -> dict:
     """
-    Common yt-dlp options.
-    - Forces the web player client so bgutil PO tokens are actually injected.
-      (Android VR client doesn't use PO tokens → still gets bot-detected.)
-    - bgutil-ytdlp-pot-provider pip plugin auto-registers and injects PO tokens;
-      extractor_args tells it where our bgutil-pot HTTP server is.
-    - ios client is tried first: no PO tokens needed, different rate-limit bucket,
-      works for public videos from datacenter IPs. web is kept as fallback so
-      bgutil kicks in if ios is unavailable for a specific video.
+    Common yt-dlp options shared by audio and clip downloads.
     """
-    verbose = os.getenv("YTDLP_VERBOSE", "").lower() == "true"
     opts = {
         "quiet": False,
         "no_warnings": False,
-        "verbose": True,      # Hardcoded for absolute visibility in Cloud Run
-        "no_color": True,      # Cleaner machine-readable logs
+        "verbose": True,       # Hardcoded for full visibility in Cloud Run logs
+        "no_color": True,
         "nocheckcertificate": True,
         "socket_timeout": 60,
         "retries": 3,
         "fragment_retries": 8,
         "http_headers": {
             "Accept-Language": "en-US,en;q=0.9",
+            "Sec-Fetch-Mode": "navigate",
         },
         "sleep_interval": 2,
         "max_sleep_interval": 5,
@@ -94,7 +136,7 @@ def _yt_base_opts() -> dict:
             "youtube": {
                 "player_client": ["web", "mweb", "android"],
             },
-            # Correct key for the bgutil-http provider (must match plugin-name)
+            # Correct key for the bgutil-http PO Token provider
             "youtubepot-bgutilhttp": {
                 "base_url": _BGUTIL_BASE_URL,
                 "service": "web",
@@ -103,11 +145,11 @@ def _yt_base_opts() -> dict:
         },
     }
 
-    # Robustness: Use cookies.txt if the user uploads it (e.g. from the robots.txt trick)
-    cookie_file = "/app/cookies.txt"
-    if os.path.exists(cookie_file):
-        logger.info(f"Found {cookie_file} — using cookies for YouTube")
+    # Attach cookies if available — massively improves bot bypass on datacenter IPs
+    cookie_file = _resolve_cookie_file()
+    if cookie_file:
         opts["cookiefile"] = cookie_file
+        logger.info(f"[cookies] Attached cookiefile to yt-dlp opts: {cookie_file}")
 
     return opts
 
