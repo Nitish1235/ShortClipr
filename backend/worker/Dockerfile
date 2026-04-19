@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     libgl1 \
+    libusb-1.0-0 \
     fonts-dejavu-core \
     fonts-liberation \
     fontconfig \
@@ -66,6 +67,8 @@ RUN chmod +x /usr/local/bin/bgutil-pot
 RUN bgutil-pot --version \
     && deno --version \
     && python -c "import yt_dlp; print('yt-dlp OK')" \
+    && python -c "import cv2; print('opencv OK')" \
+    && python -c "import mediapipe; print('mediapipe OK')" \
     && python -c "import curl_cffi; print('curl_cffi OK')" \
     && /opt/venv/bin/yt-dlp --list-impersonate-targets
 

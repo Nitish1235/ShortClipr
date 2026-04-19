@@ -1,10 +1,30 @@
-"""
-main.py — Worker entry point.
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-Database: Supabase (asyncpg) for job/user status updates.
-Storage:  GCS (unchanged) for video files and clip outputs.
-Queue:    Upstash Redis REST API.
-"""
+def _run_dummy_server():
+    """Cloud Run requires listening on $PORT for health checks ASAP."""
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"OK")
+        def log_message(self, *args):
+            pass # Suppress noisy access logs
+            
+    port = int(os.environ.get("PORT", 8080))
+    try:
+        server = HTTPServer(("0.0.0.0", port), HealthHandler)
+        server.serve_forever()
+    except Exception as e:
+        print(f"Health server failed: {e}")
+
+# ── Health server starts FIRST — always — so Cloud Run startup probe passes
+# regardless of secret availability or any downstream errors.
+threading.Thread(target=_run_dummy_server, daemon=True, name="health-server").start()
+print(f"Health server bootstrapping on port {os.environ.get('PORT', 8080)}")
+
+from pipeline import orchestrator
+
 import asyncio
 import asyncpg
 import httpx
@@ -13,11 +33,7 @@ import logging
 import os
 import signal
 import sys
-import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime, timezone
-
-from pipeline import orchestrator
 
 # ── Structured logging ────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -361,27 +377,7 @@ async def worker_loop() -> None:
     logger.info("Worker exited cleanly.")
 
 
-def _run_dummy_server():
-    """Cloud Run requires listening on $PORT for health checks."""
-    class HealthHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"OK")
-        def log_message(self, *args):
-            pass # Suppress noisy access logs
-            
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(("0.0.0.0", port), HealthHandler)
-    server.serve_forever()
-
-
 if __name__ == "__main__":
-    # ── Health server starts FIRST — always — so Cloud Run startup probe passes
-    # regardless of secret availability or any downstream errors.
-    threading.Thread(target=_run_dummy_server, daemon=True, name="health-server").start()
-    logger.info(f"Health server started on port {os.environ.get('PORT', 8080)}")
-
     required = ["SUPABASE_DB_URL", "UPSTASH_REDIS_URL", "UPSTASH_REDIS_TOKEN"]
     missing  = [k for k in required if not os.getenv(k)]
     if missing:
@@ -391,6 +387,7 @@ if __name__ == "__main__":
         )
         # Block forever so the container stays alive and healthy for Cloud Run.
         # The health server thread is daemon=True so it keeps running.
+        import threading
         threading.Event().wait()
     else:
         asyncio.run(worker_loop())
