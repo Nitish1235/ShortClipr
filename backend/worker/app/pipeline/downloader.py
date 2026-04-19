@@ -45,7 +45,6 @@ def _get_storage_client() -> storage.Client:
     return _storage_client
 
 
-from yt_dlp.networking.impersonate import ImpersonateTarget
 
 # ── URL normalisation ─────────────────────────────────────────────────────────
 
@@ -91,19 +90,15 @@ def _yt_base_opts() -> dict:
         },
         "sleep_interval": 2,
         "max_sleep_interval": 5,
-        "impersonate": ImpersonateTarget.from_str("chrome"),
         "extractor_args": {
             "youtube": {
-                # 2026 Best Practice: Using web, mweb, android for maximum reliability and cookie support.
                 "player_client": ["web", "mweb", "android"],
-                # Do NOT skip webpage/configs; we need the Visitor ID for token binding.
             },
-            # 2026 Standard dictionary format for the bgutil-pot plugin.
-            "youtubepot": {
-                "provider": "bgutil-http",
+            # Correct key for the bgutil-http provider (must match plugin-name)
+            "youtubepot-bgutilhttp": {
                 "base_url": _BGUTIL_BASE_URL,
-                "service": "web",       # Match the primary youtube client.
-                "always_update": True,   # Required for datacenter IPs to bypass SABR blocks.
+                "service": "web",
+                "always_update": True,
             },
         },
     }

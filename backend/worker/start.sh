@@ -18,13 +18,16 @@ echo "=== ShortClipr Worker Starting ==="
     echo "Background task: yt-dlp update check finished"
 ) &
 
-# ── bgutil-pot PO token server (background, non-blocking) ────────────────────
-if [ -f "/usr/local/bin/bgutil-pot" ]; then
-    /usr/local/bin/bgutil-pot server --host 127.0.0.1 --port "${BGUTIL_HTTP_SERVER_PORT:-4416}" &
-    echo "bgutil-pot started in background (PID $!)"
-else
-    echo "WARNING: bgutil-pot not found — YouTube PO tokens disabled"
-fi
+# ── bgutil-pot PO token server (non-blocking) ───────────────────────────────
+echo "=== Checking bgutil-pot binary ==="
+ls -la /usr/local/bin/bgutil-pot 2>/dev/null || echo "ERROR: bgutil-pot binary not found"
+bgutil-pot --version 2>/dev/null || echo "ERROR: bgutil-pot failed to run"
+
+BGUTIL_PORT="${BGUTIL_HTTP_SERVER_PORT:-4416}"
+echo "=== Starting bgutil-pot server on port $BGUTIL_PORT ==="
+/usr/local/bin/bgutil-pot server --host 127.0.0.1 --port "$BGUTIL_PORT" &
+BGUTIL_PID=$!
+echo "bgutil-pot started (PID: $BGUTIL_PID)"
 
 # ── Hand off to Python immediately ───────────────────────────────────────────
 # Health server inside main.py binds $PORT within seconds → probe passes.
